@@ -19,23 +19,23 @@
 body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
     background:
-        radial-gradient(circle at 8% 8%, rgba(90, 200, 250, 0.22), transparent 24rem),
-        radial-gradient(circle at 92% 28%, rgba(0, 113, 227, 0.12), transparent 26rem),
-        var(--bg);
+        radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.8), transparent 20rem),
+        radial-gradient(circle at 82% 35%, rgba(220, 224, 235, 0.55), transparent 25rem),
+        #e9ebf0;
     color: var(--navy);
     margin: 0;
 }
 
 header {
-    background: rgba(255, 255, 255, 0.68);
+    background: rgba(245, 246, 249, 0.62);
     color: var(--navy);
     padding: 0.85rem 2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08), 0 8px 28px rgba(0, 74, 173, 0.08);
-    backdrop-filter: saturate(180%) blur(22px);
-    -webkit-backdrop-filter: saturate(180%) blur(22px);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85), 0 8px 28px rgba(80, 85, 105, 0.08);
+    backdrop-filter: blur(24px) saturate(120%);
+    -webkit-backdrop-filter: blur(24px) saturate(120%);
 }
 
 header h1 { margin: 0; font-size: 1.25rem; letter-spacing: -0.02em; }
@@ -55,12 +55,12 @@ main {
     max-width: 920px;
     margin: 3.5rem auto;
     padding: 1.75rem 1.5rem 4rem;
-    background: rgba(255, 255, 255, 0.42);
-    border: 1px solid rgba(255, 255, 255, 0.8);
+    background: rgba(245, 246, 249, 0.48);
+    border: 1px solid rgba(255, 255, 255, 0.72);
     border-radius: 28px;
-    box-shadow: 0 20px 50px rgba(0, 64, 130, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 20px 50px rgba(80, 85, 105, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 h2 { margin-top: 0; font-size: clamp(2rem, 5vw, 3.2rem); letter-spacing: -0.055em; line-height: 1.05; }
@@ -96,7 +96,7 @@ form input {
 form input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--mint); }
 
 button {
-    background: linear-gradient(145deg, #1590ff, var(--teal));
+    background: #1d1d1f;
     color: white;
     border: none;
     padding: 0.65rem 1.05rem;
@@ -104,11 +104,11 @@ button {
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    box-shadow: 0 5px 0 #005bb5, 0 9px 16px rgba(0, 113, 227, 0.2);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.12);
     transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
 }
-button:hover { opacity: 1; filter: brightness(1.05); transform: translateY(-2px); box-shadow: 0 7px 0 #005bb5, 0 13px 22px rgba(0, 113, 227, 0.24); }
-button:active { transform: translateY(2px); box-shadow: 0 2px 0 #005bb5, 0 5px 10px rgba(0, 113, 227, 0.16); }
+button:hover { opacity: 1; filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 9px 18px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.14); }
+button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.14); }
 
 .hint { font-size: 0.85rem; color: var(--muted); margin-top: 1rem; line-height: 1.5; }
 
@@ -129,12 +129,14 @@ button:active { transform: translateY(2px); box-shadow: 0 2px 0 #005bb5, 0 5px 1
 .room-entry { display: inline-flex; align-items: center; }
 .favorite-section {
     position: relative;
-    background: linear-gradient(145deg, #ffffff, #f1f1f4);
-    border: 1px solid #e1e1e6;
-    border-radius: 20px;
+    background: rgba(245, 246, 249, 0.64);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-radius: 24px;
     padding: 0.8rem 1.1rem 1.15rem;
     margin: 1.5rem 0 2rem;
-    box-shadow: var(--shadow);
+    box-shadow: 0 16px 30px rgba(80, 85, 105, 0.12), inset 0 1px 0 #ffffff;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
 }
 .favorite-section h3 {
     margin: 0.5rem 0 0.65rem;
@@ -150,12 +152,12 @@ button:active { transform: translateY(2px); box-shadow: 0 2px 0 #005bb5, 0 5px 1
 }
 .favorite-button {
     background: transparent;
-    color: var(--muted);
+    color: #1d1d1f;
     padding: 0.25rem;
     font-size: 1.1rem;
     box-shadow: none;
 }
-.favorite-button.is-favorite { color: #d45d35; }
+.favorite-button.is-favorite { color: #c59622; }
 .favorite-chip {
     width: 100%;
     background: var(--navy);
@@ -202,19 +204,20 @@ button:active { transform: translateY(2px); box-shadow: 0 2px 0 #005bb5, 0 5px 1
 .room-details h3,
 .room-details p { margin: 0.2rem 0; }
 .room-chip.free {
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(220, 238, 255, 0.7));
+    background: rgba(248, 249, 252, 0.62);
     color: var(--navy);
     border: 1px solid rgba(255, 255, 255, 0.95);
-    box-shadow: 0 7px 0 #bfdcf6, 0 12px 20px rgba(0, 83, 170, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(14px) saturate(140%);
+    box-shadow: 0 8px 18px rgba(80, 85, 105, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px) saturate(115%);
+    -webkit-backdrop-filter: blur(16px) saturate(115%);
 }
 .room-chip.free:hover {
-    background: #ffffff;
-    box-shadow: 0 9px 0 #bfdcf6, 0 16px 24px rgba(0, 83, 170, 0.18), inset 0 1px 0 #ffffff;
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 12px 22px rgba(80, 85, 105, 0.18), inset 0 1px 0 #ffffff;
+    transform: translateY(-1px);
 }
 .room-chip.occupied {
-    background: #e8e8ed;
+    background: rgba(215, 217, 224, 0.74);
     color: #555;
     border: 1px solid #d5d5da;
     box-shadow: none;
