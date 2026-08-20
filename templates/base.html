@@ -11,7 +11,14 @@
 </head>
 <body>
     <header>
-        <h1>🔎 RaumRadar</h1>
+        <a class="brand" href="{{ url_for('index') }}" aria-label="RaumRadar Startseite">
+            <span class="radar brand-radar" aria-hidden="true">
+                <span class="radar-sweep"></span>
+                <span class="radar-dot radar-dot-one"></span>
+                <span class="radar-dot radar-dot-two"></span>
+            </span>
+            <h1>RaumRadar</h1>
+        </a>
         {% if session.get('untis_session') %}
         <nav>
             <a href="{{ url_for('free_rooms') }}">Freie Räume</a>
