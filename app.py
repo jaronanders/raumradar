@@ -91,6 +91,7 @@ def login():
         session["untis_server"] = server
         session["untis_username"] = username
         session["untis_session"] = client.session_id
+        session["untis_user_id"] = client.user_id
 
         flash("Erfolgreich eingeloggt!")
         return redirect(url_for("free_rooms"))
@@ -112,6 +113,7 @@ def get_client_from_session():
     """Baut aus der Browser-Session einen UntisClient ohne Passwort auf."""
     client = UntisClient(session["untis_school"], session["untis_server"])
     client.session_id = session["untis_session"]
+    client.user_id = session.get("untis_user_id")
     return client
 
 
