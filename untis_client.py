@@ -42,7 +42,7 @@ class UntisClient:
             "client": "RaumRadar",
         })
         self.session_id = result["sessionId"]
-        self.user_id = result.get("userId") or result.get("personId")
+        self.user_id = result.get("personId") or result.get("userId")
         return result
 
     def logout(self):
@@ -70,7 +70,7 @@ class UntisClient:
             raise UntisError("Die Benutzer-ID wurde von WebUntis nicht geliefert.")
         result = self._rpc("getTimetable", {
             "id": self.user_id,
-            "type": 5,
+            "type": 4,
             "startDate": int(monday.strftime("%Y%m%d")),
             "endDate": int(friday.strftime("%Y%m%d")),
         })
