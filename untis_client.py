@@ -7,7 +7,7 @@ und Stundenpläne abzufragen.
 """
 
 import requests
-from datetime import date, timedelta
+from datetime import date
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -23,8 +23,6 @@ class UntisClient:
         self.base_url = f"https://{server}/WebUntis/jsonrpc.do?school={school}"
         self.session = requests.Session()
         self.session_id = None
-        self.user_id = None
-        self.class_id = None
 
     def _rpc(self, method, params):
         payload = {"id": "req", "method": method, "params": params, "jsonrpc": "2.0"}
@@ -43,8 +41,6 @@ class UntisClient:
             "client": "RaumRadar",
         })
         self.session_id = result["sessionId"]
-        self.user_id = None
-        self.class_id = result.get("klasseId") or result.get("classId")
         return result
 
     def logout(self):
@@ -62,15 +58,6 @@ class UntisClient:
     def get_klassen(self):
         """Gibt alle Klassen der Schule zurück: [{id, name}, ...]"""
         return self._rpc("getKlassen", {})
-
-    def get_own_timetable(self, day=None):
-        """Gibt den persönlichen Stundenplan für eine Woche zurück."""
-        day = day or date.today()
-        monday = day - timedelta(days=day.weekday())
-        friday = monday + timedelta(days=4)
-        if self.class_id is None:
-            raise UntisError("WebUntis hat keine Klassen-ID geliefert.")
-        return self.get_timetable_for_klasse(self.class_id, day)
 
     def get_timetable_for_klasse(self, klasse_id, day=None):
         """Stundenplan einer einzelnen Klasse für einen Tag (default: heute)."""
