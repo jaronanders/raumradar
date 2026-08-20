@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Freie Räume – Stand {{ current_time }} Uhr</h2>
+
+<p>{{ free_rooms|length }} von {{ total_rooms }} Räumen gerade frei.</p>
+
+<div class="room-grid">
+    {% for room in free_rooms %}
+        <div class="room-chip free">{{ room }}</div>
+    {% else %}
+        <p>Keine freien Räume gefunden (oder gerade keine Daten verfügbar).</p>
+    {% endfor %}
+</div>
+
+<h3>Gerade belegt</h3>
+<div class="room-grid">
+    {% for room in occupied_rooms %}
+        <div class="room-chip occupied">{{ room }}</div>
+    {% endfor %}
+</div>
+
+<p><a href="{{ url_for('free_rooms') }}">🔄 Aktualisieren</a></p>
+{% endblock %}

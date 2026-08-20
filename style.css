@@ -1,0 +1,110 @@
+:root {
+    --navy: #1E2140;
+    --teal: #2AA89A;
+    --coral: #FF7A59;
+    --bg: #F7F7F4;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--navy);
+    margin: 0;
+}
+
+header {
+    background: var(--navy);
+    color: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h1 { margin: 0; font-size: 1.4rem; }
+
+nav a {
+    color: white;
+    text-decoration: none;
+    margin-left: 1.2rem;
+    opacity: 0.85;
+}
+nav a:hover { opacity: 1; text-decoration: underline; }
+
+main {
+    max-width: 700px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.flashes {
+    list-style: none;
+    padding: 0.8rem 1rem;
+    background: #fff3ec;
+    border-left: 4px solid var(--coral);
+    margin-bottom: 1.5rem;
+}
+
+form label {
+    display: block;
+    margin-bottom: 0.8rem;
+    font-size: 0.9rem;
+}
+
+form input {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+    margin-top: 0.3rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+button {
+    background: var(--teal);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+button:hover { opacity: 0.9; }
+
+.hint { font-size: 0.85rem; color: #666; margin-top: 1rem; }
+
+.room-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.room-chip {
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+.room-chip.free { background: var(--teal); color: white; }
+.room-chip.occupied { background: #ddd; color: #555; }
+
+.homework-list { list-style: none; padding: 0; }
+.homework-list li {
+    background: white;
+    padding: 0.8rem 1rem;
+    margin-bottom: 0.6rem;
+    border-radius: 8px;
+    border-left: 4px solid var(--teal);
+}
+.homework-list li.done {
+    opacity: 0.5;
+    border-left-color: #aaa;
+    text-decoration: line-through;
+}
+.homework-list .due {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--coral);
+}

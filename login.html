@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Login mit deinem Untis-Account</h2>
+<form method="POST" class="login-form">
+    <label>Schulname
+        <input type="text" name="school" placeholder="z.B. dein-schulname" required>
+    </label>
+    <label>Server
+        <input type="text" name="server" placeholder="z.B. nessa.webuntis.com" required>
+    </label>
+    <label>Benutzername
+        <input type="text" name="username" required>
+    </label>
+    <label>Passwort
+        <input type="password" name="password" required>
+    </label>
+    <button type="submit">Einloggen</button>
+</form>
+<p class="hint">
+    Tipp: Schulname und Server findest du in deiner Untis-Login-URL,
+    z.B. bei https://nessa.webuntis.com/WebUntis/?school=dein-schulname
+    ist "nessa.webuntis.com" der Server und "dein-schulname" die Schule.
+</p>
+{% endblock %}

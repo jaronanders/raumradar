@@ -1,0 +1,17 @@
+{
+    "name": "RaumRadar",
+    "short_name": "RaumRadar",
+    "description": "Freie Räume und Hausaufgaben deiner Schule",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#F7F7F4",
+    "theme_color": "#1E2140",
+    "icons": [
+        {
+            "src": "/static/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}

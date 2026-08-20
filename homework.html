@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Hausaufgaben & Notizen</h2>
+
+<form method="POST" class="homework-form">
+    <label>Fach
+        <input type="text" name="subject" placeholder="z.B. Mathe" required>
+    </label>
+    <label>Was ist zu tun?
+        <input type="text" name="content" placeholder="z.B. Seite 42, Aufgabe 3-5" required>
+    </label>
+    <label>Frist (optional)
+        <input type="date" name="due_date">
+    </label>
+    <button type="submit">Hinzufügen</button>
+</form>
+
+<ul class="homework-list">
+    {% for item in items %}
+    <li class="{{ 'done' if item.done else '' }}">
+        <strong>{{ item.subject }}</strong> — {{ item.content }}
+        {% if item.due_date %}<span class="due">Fällig: {{ item.due_date }}</span>{% endif %}
+
+        <form method="POST" action="{{ url_for('toggle_homework', homework_id=item.id) }}" style="display:inline">
+            <button type="submit">{{ 'Wieder öffnen' if item.done else 'Erledigt' }}</button>
+        </form>
+        <form method="POST" action="{{ url_for('delete_homework', homework_id=item.id) }}" style="display:inline">
+            <button type="submit">Löschen</button>
+        </form>
+    </li>
+    {% else %}
+    <p>Noch keine Hausaufgaben eingetragen.</p>
+    {% endfor %}
+</ul>
+{% endblock %}
