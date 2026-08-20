@@ -59,6 +59,15 @@ class UntisClient:
         """Gibt alle Klassen der Schule zurück: [{id, name}, ...]"""
         return self._rpc("getKlassen", {})
 
+    def get_own_timetable(self, day=None):
+        """Gibt den persönlichen Stundenplan für einen Tag zurück."""
+        day = day or date.today()
+        day_int = int(day.strftime("%Y%m%d"))
+        return self._rpc("getOwnTimetable", {
+            "startDate": day_int,
+            "endDate": day_int,
+        })
+
     def get_timetable_for_klasse(self, klasse_id, day=None):
         """Stundenplan einer einzelnen Klasse für einen Tag (default: heute)."""
         day = day or date.today()
