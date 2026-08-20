@@ -10,6 +10,7 @@
         <span>
             <strong>{{ lesson.subject }}</strong>
             <span class="timetable-meta">Raum: {{ lesson.room }} | Lehrkraft: {{ lesson.teacher }}</span>
+            <span class="timetable-status {{ lesson.status|lower|replace(' ', '-') }}">{{ lesson.status }}</span>
         </span>
     </li>
     {% else %}
