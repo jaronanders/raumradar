@@ -121,6 +121,7 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     place-items: center;
     padding: 1.5rem;
     background: rgba(232, 241, 248, 0.42);
+    isolation: isolate;
     backdrop-filter: blur(18px) saturate(125%);
     -webkit-backdrop-filter: blur(18px) saturate(125%);
 }
@@ -192,6 +193,12 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
 .radar-dot-two { top: 68%; left: 35%; animation: radar-pulse 1.5s ease-in-out infinite; }
 @keyframes radar-sweep { to { transform: rotate(360deg); } }
 @keyframes radar-pulse { 50% { opacity: 0.28; transform: scale(0.6); } }
+
+.login-form button:disabled {
+    opacity: 0.72;
+    cursor: wait;
+    transform: none;
+}
 
 .room-grid {
     display: flex;
@@ -378,6 +385,19 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     header { padding: 1rem; align-items: flex-start; flex-direction: column; }
     nav { display: flex; flex-wrap: wrap; gap: 0.35rem; }
     nav a { margin-left: 0; }
-    main { margin: 1rem; padding: 1rem; border-radius: 12px; }
+    main { margin: 0.75rem; padding: 1.15rem 0.9rem 2.5rem; border-radius: 20px; }
+    h2 { font-size: 2rem; line-height: 1.05; }
+    header h1 { font-size: 1.15rem; }
+    nav a { padding: 0.35rem 0.5rem; font-size: 0.8rem; }
+    .room-grid { gap: 0.45rem; margin-bottom: 1.4rem; }
+    .room-chip { padding: 0.58rem 0.78rem; font-size: 0.84rem; }
+    .favorite-section { margin: 1rem 0 1.5rem; padding: 0.65rem 0.75rem 0.9rem; border-radius: 20px; }
+    .favorite-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; }
+    .favorite-chip { padding: 0.5rem 0.35rem; font-size: 0.82rem; }
+    .refresh-row { flex-wrap: wrap; gap: 0.45rem; margin-top: 1rem; }
+    .room-details { margin-top: 0.75rem; }
+    .login-loading { padding: 1rem; }
+    .login-loading-card { width: min(100%, 320px); padding: 1.7rem 1.2rem; border-radius: 24px; }
+    .radar { width: 118px; height: 118px; }
 }
 
