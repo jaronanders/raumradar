@@ -100,6 +100,27 @@ button:hover { opacity: 0.9; }
 .room-chip.free { background: var(--teal); color: white; }
 .room-chip.occupied { background: #ddd; color: #555; }
 
+.timetable-list {
+    list-style: none;
+    padding: 0;
+}
+.timetable-item {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    gap: 0.8rem;
+    background: white;
+    padding: 0.8rem 1rem;
+    margin-bottom: 0.6rem;
+    border-left: 4px solid var(--teal);
+}
+.timetable-time { font-weight: bold; }
+.timetable-meta {
+    display: block;
+    color: #666;
+    font-size: 0.85rem;
+    margin-top: 0.2rem;
+}
+
 .homework-list { list-style: none; padding: 0; }
 .homework-list li {
     background: white;
