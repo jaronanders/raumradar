@@ -188,9 +188,23 @@ button:hover { opacity: 1; filter: brightness(1.05); transform: translateY(-1px)
 }
 .room-details h3,
 .room-details p { margin: 0.2rem 0; }
-.room-chip.free { background: #34c759; color: white; }
-.room-chip.free:hover { background: var(--teal-dark); }
-.room-chip.occupied { background: #e8e8ed; color: #555; }
+.room-chip.free {
+    background: rgba(255, 255, 255, 0.78);
+    color: var(--navy);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(14px) saturate(140%);
+}
+.room-chip.free:hover {
+    background: #ffffff;
+    box-shadow: 0 7px 18px rgba(0, 0, 0, 0.14), inset 0 1px 0 #ffffff;
+}
+.room-chip.occupied {
+    background: #e8e8ed;
+    color: #555;
+    border: 1px solid #d5d5da;
+    box-shadow: none;
+}
 
 .timetable-week {
     display: grid;
