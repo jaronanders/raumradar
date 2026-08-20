@@ -54,6 +54,18 @@ def get_local_date():
     return datetime.now(LOCAL_TIMEZONE).date()
 
 
+def format_lesson_people(items):
+    names = []
+    for item in items or []:
+        if isinstance(item, str):
+            name = item
+        else:
+            name = item.get("name") or item.get("longName") or item.get("shortName")
+        if name and name not in names:
+            names.append(name)
+    return ", ".join(names)
+
+
 @app.route("/")
 def index():
     if "untis_session" not in session:
@@ -211,30 +223,26 @@ def timetable():
         return redirect(url_for("free_rooms"))
 
     timetable_items = []
+    current_time = get_current_stunde_zeit()
     for lesson in sorted(lessons, key=lambda item: item.get("startTime", 0)):
         start = lesson.get("startTime", 0)
         end = lesson.get("endTime", 0)
-        subjects = ", ".join(
-            subject.get("name", "")
-            for subject in lesson.get("su", [])
-            if subject.get("name")
-        )
-        rooms = ", ".join(
-            room.get("name", "")
-            for room in lesson.get("ro", [])
-            if room.get("name")
-        )
-        teachers = ", ".join(
-            teacher.get("name", "")
-            for teacher in lesson.get("te", [])
-            if teacher.get("name")
-        )
+        subjects = format_lesson_people(lesson.get("su")) or lesson.get("subject", "")
+        rooms = format_lesson_people(lesson.get("ro")) or lesson.get("room", "")
+        teachers = format_lesson_people(lesson.get("te")) or lesson.get("teacher", "")
+        if end < current_time:
+            status = "Vorbei"
+        elif start <= current_time <= end:
+            status = "Läuft gerade"
+        else:
+            status = "Als Nächstes"
         timetable_items.append({
             "start": f"{start // 100:02d}:{start % 100:02d}",
             "end": f"{end // 100:02d}:{end % 100:02d}",
             "subject": subjects or "Unterricht",
             "room": rooms or "-",
             "teacher": teachers or "-",
+            "status": status,
         })
 
     return render_template(
