@@ -21,4 +21,22 @@
     z.B. bei https://nessa.webuntis.com/WebUntis/?school=dein-schulname
     ist "nessa.webuntis.com" der Server und "dein-schulname" die Schule.
 </p>
+
+<div id="login-loading" class="login-loading" hidden aria-live="polite">
+    <div class="login-loading-card">
+        <div class="radar" aria-hidden="true">
+            <span class="radar-sweep"></span>
+            <span class="radar-dot radar-dot-one"></span>
+            <span class="radar-dot radar-dot-two"></span>
+        </div>
+        <strong>RaumRadar</strong>
+        <span>Verbindung zu Untis wird hergestellt ...</span>
+    </div>
+</div>
+
+<script>
+    document.querySelector('.login-form').addEventListener('submit', () => {
+        document.getElementById('login-loading').hidden = false;
+    });
+</script>
 {% endblock %}
