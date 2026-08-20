@@ -7,7 +7,7 @@ und Stundenpläne abzufragen.
 """
 
 import requests
-from datetime import date
+from datetime import date, timedelta
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -62,16 +62,17 @@ class UntisClient:
         return self._rpc("getKlassen", {})
 
     def get_own_timetable(self, day=None):
-        """Gibt den persönlichen Stundenplan für einen Tag zurück."""
+        """Gibt den persönlichen Stundenplan für eine Woche zurück."""
         day = day or date.today()
-        day_int = int(day.strftime("%Y%m%d"))
+        monday = day - timedelta(days=day.weekday())
+        friday = monday + timedelta(days=4)
         if self.user_id is None:
             raise UntisError("Die Benutzer-ID wurde von WebUntis nicht geliefert.")
         return self._rpc("getTimetable", {
             "id": self.user_id,
             "type": 5,
-            "startDate": day_int,
-            "endDate": day_int,
+            "startDate": int(monday.strftime("%Y%m%d")),
+            "endDate": int(friday.strftime("%Y%m%d")),
         })
 
     def get_timetable_for_klasse(self, klasse_id, day=None):
