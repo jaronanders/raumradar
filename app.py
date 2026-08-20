@@ -64,7 +64,13 @@ def format_lesson_people(items):
         if isinstance(item, str):
             name = item
         else:
-            name = item.get("name") or item.get("longName") or item.get("shortName")
+            name = (
+                item.get("name")
+                or item.get("longName")
+                or item.get("shortName")
+                or item.get("displayName")
+                or item.get("text")
+            )
         if name and name not in names:
             names.append(name)
     return ", ".join(names)
@@ -76,6 +82,33 @@ def get_lesson_values(lesson, *keys):
         if values:
             return values
     return []
+
+
+def find_lesson_values(lesson, keys):
+    """Findet Entitäten auch, wenn die Untis-Antwort sie verschachtelt liefert."""
+    values = get_lesson_values(lesson, *keys)
+    if values:
+        return values
+    for value in lesson.values():
+        if isinstance(value, dict):
+            nested = find_lesson_values(value, keys)
+            if nested:
+                return nested
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    nested = find_lesson_values(item, keys)
+                    if nested:
+                        return nested
+    return []
+
+
+def get_lesson_text(lesson, keys):
+    for key in keys:
+        value = lesson.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return ""
 
 
 def normalize_lesson_date(value):
@@ -255,9 +288,9 @@ def timetable():
     for lesson in sorted(lessons, key=lambda item: (str(item.get("date", item.get("startDate", ""))), item.get("startTime", 0))):
         start = lesson.get("startTime", 0)
         end = lesson.get("endTime", 0)
-        subjects = format_lesson_people(get_lesson_values(lesson, "su", "subjects")) or lesson.get("subject") or lesson.get("subjectName", "")
-        rooms = format_lesson_people(get_lesson_values(lesson, "ro", "rooms")) or lesson.get("room") or lesson.get("roomName", "")
-        teachers = format_lesson_people(get_lesson_values(lesson, "te", "teachers")) or lesson.get("teacher") or lesson.get("teacherName", "")
+        subjects = format_lesson_people(find_lesson_values(lesson, ("su", "subjects", "subject"))) or get_lesson_text(lesson, ("subjectName", "subjectText"))
+        rooms = format_lesson_people(find_lesson_values(lesson, ("ro", "rooms", "room"))) or get_lesson_text(lesson, ("roomName", "roomText"))
+        teachers = format_lesson_people(find_lesson_values(lesson, ("te", "teachers", "teacher"))) or get_lesson_text(lesson, ("teacherName", "teacherText"))
         lesson_date = normalize_lesson_date(lesson.get("date") or lesson.get("startDate"))
         if lesson_date == today and end < current_time:
             status = "Vorbei"
