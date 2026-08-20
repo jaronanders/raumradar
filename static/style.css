@@ -87,6 +87,16 @@ button:hover { opacity: 0.9; }
     border-radius: 20px;
     font-size: 0.9rem;
 }
+.room-button { border: 0; }
+.room-button:hover { transform: translateY(-1px); }
+.room-details {
+    background: white;
+    border-left: 4px solid var(--coral);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+}
+.room-details h3,
+.room-details p { margin: 0.2rem 0; }
 .room-chip.free { background: var(--teal); color: white; }
 .room-chip.occupied { background: #ddd; color: #555; }
 
