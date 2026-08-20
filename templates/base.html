@@ -38,7 +38,11 @@
         let roomRadarAudioContext;
 
         function getRoomRadarAudioContext() {
-            roomRadarAudioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+            if (!roomRadarAudioContext) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) return null;
+                roomRadarAudioContext = new AudioContextClass();
+            }
             if (roomRadarAudioContext.state === 'suspended') {
                 roomRadarAudioContext.resume();
             }
@@ -47,34 +51,44 @@
 
         function playRoomRadarPop() {
             const audioContext = getRoomRadarAudioContext();
+            if (!audioContext) return;
             const oscillator = audioContext.createOscillator();
+            const overtone = audioContext.createOscillator();
             const gain = audioContext.createGain();
             const startTime = audioContext.currentTime;
             oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(620, startTime);
-            oscillator.frequency.exponentialRampToValueAtTime(900, startTime + 0.07);
+            oscillator.frequency.setValueAtTime(720, startTime);
+            oscillator.frequency.exponentialRampToValueAtTime(520, startTime + 0.065);
+            overtone.type = 'triangle';
+            overtone.frequency.setValueAtTime(1440, startTime);
+            overtone.frequency.exponentialRampToValueAtTime(1040, startTime + 0.05);
             gain.gain.setValueAtTime(0.0001, startTime);
-            gain.gain.exponentialRampToValueAtTime(0.045, startTime + 0.008);
-            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.09);
-            oscillator.connect(gain).connect(audioContext.destination);
+            gain.gain.exponentialRampToValueAtTime(0.035, startTime + 0.004);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.075);
+            oscillator.connect(gain);
+            overtone.connect(gain);
+            gain.connect(audioContext.destination);
             oscillator.start(startTime);
-            oscillator.stop(startTime + 0.1);
+            overtone.start(startTime);
+            oscillator.stop(startTime + 0.08);
+            overtone.stop(startTime + 0.06);
         }
 
         function playRoomRadarSweep() {
             const audioContext = getRoomRadarAudioContext();
+            if (!audioContext) return;
             const oscillator = audioContext.createOscillator();
             const gain = audioContext.createGain();
             const startTime = audioContext.currentTime;
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(420, startTime);
-            oscillator.frequency.exponentialRampToValueAtTime(980, startTime + 0.42);
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(280, startTime);
+            oscillator.frequency.exponentialRampToValueAtTime(760, startTime + 0.5);
             gain.gain.setValueAtTime(0.0001, startTime);
-            gain.gain.exponentialRampToValueAtTime(0.06, startTime + 0.04);
-            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.48);
+            gain.gain.exponentialRampToValueAtTime(0.045, startTime + 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.56);
             oscillator.connect(gain).connect(audioContext.destination);
             oscillator.start(startTime);
-            oscillator.stop(startTime + 0.5);
+            oscillator.stop(startTime + 0.58);
         }
 
         document.addEventListener('click', (event) => {
