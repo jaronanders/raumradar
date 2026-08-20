@@ -55,6 +55,10 @@ def get_local_date():
 
 
 def format_lesson_people(items):
+    if isinstance(items, dict):
+        items = [items]
+    if isinstance(items, str):
+        return items
     names = []
     for item in items or []:
         if isinstance(item, str):
@@ -72,6 +76,20 @@ def get_lesson_values(lesson, *keys):
         if values:
             return values
     return []
+
+
+def normalize_lesson_date(value):
+    if isinstance(value, date):
+        return value
+    if isinstance(value, int):
+        value = str(value)
+    if isinstance(value, str):
+        for date_format in ("%Y%m%d", "%Y-%m-%d", "%d.%m.%Y"):
+            try:
+                return datetime.strptime(value[:10], date_format).date()
+            except ValueError:
+                continue
+    return None
 
 
 @app.route("/")
@@ -234,15 +252,13 @@ def timetable():
     current_time = get_current_stunde_zeit()
     today = get_local_date()
     weekday_names = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"]
-    for lesson in sorted(lessons, key=lambda item: (item.get("date", item.get("startDate", 0)), item.get("startTime", 0))):
+    for lesson in sorted(lessons, key=lambda item: (str(item.get("date", item.get("startDate", ""))), item.get("startTime", 0))):
         start = lesson.get("startTime", 0)
         end = lesson.get("endTime", 0)
-        subjects = format_lesson_people(get_lesson_values(lesson, "su", "subjects")) or lesson.get("subject", "")
-        rooms = format_lesson_people(get_lesson_values(lesson, "ro", "rooms")) or lesson.get("room", "")
-        teachers = format_lesson_people(get_lesson_values(lesson, "te", "teachers")) or lesson.get("teacher", "")
-        lesson_date = lesson.get("date") or lesson.get("startDate")
-        if isinstance(lesson_date, int):
-            lesson_date = datetime.strptime(str(lesson_date), "%Y%m%d").date()
+        subjects = format_lesson_people(get_lesson_values(lesson, "su", "subjects")) or lesson.get("subject") or lesson.get("subjectName", "")
+        rooms = format_lesson_people(get_lesson_values(lesson, "ro", "rooms")) or lesson.get("room") or lesson.get("roomName", "")
+        teachers = format_lesson_people(get_lesson_values(lesson, "te", "teachers")) or lesson.get("teacher") or lesson.get("teacherName", "")
+        lesson_date = normalize_lesson_date(lesson.get("date") or lesson.get("startDate"))
         if lesson_date == today and end < current_time:
             status = "Vorbei"
         elif lesson_date == today and start <= current_time <= end:
@@ -260,9 +276,19 @@ def timetable():
             "status": status,
         })
 
+    week_start = today - timedelta(days=today.weekday())
+    timetable_days = []
+    for day_offset in range(5):
+        day = week_start + timedelta(days=day_offset)
+        timetable_days.append({
+            "name": weekday_names[day_offset],
+            "date": day.strftime("%d.%m."),
+            "lessons": [lesson for lesson in timetable_items if lesson["date"] == day],
+        })
+
     return render_template(
         "timetable.html",
-        lessons=timetable_items,
+        days=timetable_days,
         current_date=get_local_date().strftime("%d.%m.%Y"),
     )
 
