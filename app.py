@@ -163,6 +163,7 @@ def login():
         session["untis_username"] = username
         session["untis_session"] = client.session_id
         session["untis_user_id"] = client.user_id
+        session["untis_class_id"] = client.class_id
 
         flash("Erfolgreich eingeloggt!")
         return redirect(url_for("free_rooms"))
@@ -185,6 +186,7 @@ def get_client_from_session():
     client = UntisClient(session["untis_school"], session["untis_server"])
     client.session_id = session["untis_session"]
     client.user_id = session.get("untis_user_id")
+    client.class_id = session.get("untis_class_id")
     return client
 
 
