@@ -87,6 +87,18 @@ button:hover { opacity: 0.9; }
     border-radius: 20px;
     font-size: 0.9rem;
 }
+.room-entry { display: inline-flex; align-items: center; }
+.favorite-button {
+    background: transparent;
+    color: var(--coral);
+    padding: 0.25rem;
+    font-size: 1.1rem;
+}
+.favorite-button.is-favorite { color: #d45d35; }
+.favorite-chip { background: var(--coral); color: white; }
+.favorite-empty,
+.loading-message { color: #666; font-size: 0.9rem; }
+.loading-message { font-weight: bold; }
 .room-button { border: 0; }
 .room-button:hover { transform: translateY(-1px); }
 .room-details {
