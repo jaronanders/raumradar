@@ -120,6 +120,15 @@ button:hover { opacity: 0.9; }
     font-size: 0.85rem;
     margin-top: 0.2rem;
 }
+.timetable-status {
+    display: inline-block;
+    margin-top: 0.35rem;
+    color: var(--teal);
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+.timetable-status.vorbei { color: #888; }
+.timetable-status.läuft-gerade { color: var(--coral); }
 
 .homework-list { list-style: none; padding: 0; }
 .homework-list li {
