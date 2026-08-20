@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Login mit deinem Untis-Account</h2>
-<form method="POST" class="login-form">
+<form method="POST" class="login-form" id="login-form">
     <label>Schulname
         <input type="text" name="school" value="mdg-moelln" autocomplete="organization" required>
     </label>
@@ -35,8 +35,13 @@
 </div>
 
 <script>
-    document.querySelector('.login-form').addEventListener('submit', () => {
-        document.getElementById('login-loading').hidden = false;
+    document.getElementById('login-form').addEventListener('submit', (event) => {
+        const form = event.currentTarget;
+        const overlay = document.getElementById('login-loading');
+        const submitButton = form.querySelector('button[type="submit"]');
+        overlay.hidden = false;
+        submitButton.disabled = true;
+        submitButton.textContent = 'Wird verbunden ...';
     });
 </script>
 {% endblock %}
