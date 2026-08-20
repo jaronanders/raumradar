@@ -10,7 +10,7 @@ Dann im Browser öffnen:
     http://127.0.0.1:5000
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import os
 import secrets
 import time
@@ -64,6 +64,14 @@ def format_lesson_people(items):
         if name and name not in names:
             names.append(name)
     return ", ".join(names)
+
+
+def get_lesson_values(lesson, *keys):
+    for key in keys:
+        values = lesson.get(key)
+        if values:
+            return values
+    return []
 
 
 @app.route("/")
@@ -224,19 +232,26 @@ def timetable():
 
     timetable_items = []
     current_time = get_current_stunde_zeit()
-    for lesson in sorted(lessons, key=lambda item: item.get("startTime", 0)):
+    today = get_local_date()
+    weekday_names = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"]
+    for lesson in sorted(lessons, key=lambda item: (item.get("date", item.get("startDate", 0)), item.get("startTime", 0))):
         start = lesson.get("startTime", 0)
         end = lesson.get("endTime", 0)
-        subjects = format_lesson_people(lesson.get("su")) or lesson.get("subject", "")
-        rooms = format_lesson_people(lesson.get("ro")) or lesson.get("room", "")
-        teachers = format_lesson_people(lesson.get("te")) or lesson.get("teacher", "")
-        if end < current_time:
+        subjects = format_lesson_people(get_lesson_values(lesson, "su", "subjects")) or lesson.get("subject", "")
+        rooms = format_lesson_people(get_lesson_values(lesson, "ro", "rooms")) or lesson.get("room", "")
+        teachers = format_lesson_people(get_lesson_values(lesson, "te", "teachers")) or lesson.get("teacher", "")
+        lesson_date = lesson.get("date") or lesson.get("startDate")
+        if isinstance(lesson_date, int):
+            lesson_date = datetime.strptime(str(lesson_date), "%Y%m%d").date()
+        if lesson_date == today and end < current_time:
             status = "Vorbei"
-        elif start <= current_time <= end:
+        elif lesson_date == today and start <= current_time <= end:
             status = "Läuft gerade"
         else:
             status = "Als Nächstes"
         timetable_items.append({
+            "date": lesson_date,
+            "weekday": weekday_names[lesson_date.weekday()] if lesson_date and lesson_date.weekday() < 5 else "",
             "start": f"{start // 100:02d}:{start % 100:02d}",
             "end": f"{end // 100:02d}:{end % 100:02d}",
             "subject": subjects or "Unterricht",
