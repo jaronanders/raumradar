@@ -8,6 +8,7 @@ und Stundenpläne abzufragen.
 
 import requests
 from datetime import date
+from concurrent.futures import ThreadPoolExecutor
 
 
 class UntisError(Exception):
@@ -76,14 +77,23 @@ class UntisClient:
         Achtung: das ist ein Aufruf pro Klasse -> kann bei vielen Klassen dauern.
         """
         klassen = self.get_klassen()
-        all_lessons = []
-        for klasse in klassen:
+        def fetch_for_klasse(klasse):
             try:
                 lessons = self.get_timetable_for_klasse(klasse["id"], day)
                 for lesson in lessons:
                     lesson["_klasse_name"] = klasse.get("name")
-                all_lessons.extend(lessons)
+                return lessons
             except UntisError:
                 # Manche Klassen könnten keine Berechtigung erlauben -> überspringen
-                continue
+                return []
+
+        # Die API-Anfragen warten überwiegend auf Netzwerkantworten. Parallel
+        # ist die Laufzeit dadurch ungefähr die langsamste Einzelanfrage statt
+        # der Summe aller Klassenanfragen.
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            lesson_groups = executor.map(fetch_for_klasse, klassen)
+
+        all_lessons = []
+        for lessons in lesson_groups:
+            all_lessons.extend(lessons)
         return all_lessons
