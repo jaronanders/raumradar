@@ -164,10 +164,33 @@ def free_rooms():
     free_room_names = sorted(all_room_names - occupied_room_names)
     occupied_sorted = sorted(occupied_room_names & ALLOWED_ROOM_NAMES)
 
+    next_lessons = {room_name: None for room_name in all_room_names}
+    for lesson in lessons:
+        start = lesson.get("startTime", 0)
+        if start < current_time:
+            continue
+        for room in lesson.get("ro", []):
+            room_name = room.get("name")
+            if room_name not in next_lessons:
+                continue
+            current_next = next_lessons[room_name]
+            if current_next is None or start < current_next["start_time"]:
+                next_lessons[room_name] = {
+                    "start_time": start,
+                    "start": f"{start // 100:02d}:{start % 100:02d}",
+                    "end": f"{lesson.get('endTime', 0) // 100:02d}:{lesson.get('endTime', 0) % 100:02d}",
+                    "subject": ", ".join(
+                        subject.get("name", "")
+                        for subject in lesson.get("su", [])
+                        if subject.get("name")
+                    ) or "Unterricht",
+                }
+
     return render_template(
         "free_rooms.html",
         free_rooms=free_room_names,
         occupied_rooms=occupied_sorted,
+        next_lessons=next_lessons,
         total_rooms=len(all_room_names),
         current_time=datetime.now(LOCAL_TIMEZONE).strftime("%H:%M"),
     )
