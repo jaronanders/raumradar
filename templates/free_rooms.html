@@ -3,10 +3,19 @@
 <h2>Freie Räume – Stand {{ current_time }} Uhr</h2>
 
 <p>{{ free_rooms|length }} von {{ total_rooms }} Räumen gerade frei.</p>
+<p id="loading-message" class="loading-message" hidden>Daten werden geladen ...</p>
+
+<h3>Favoriten</h3>
+<div id="favorite-rooms" class="room-grid">
+    <p class="favorite-empty">Noch keine Favoriten markiert.</p>
+</div>
 
 <div class="room-grid">
     {% for room in free_rooms %}
-        <button class="room-chip free room-button" type="button" data-room="{{ room }}">{{ room }}</button>
+        <span class="room-entry">
+            <button class="room-chip free room-button" type="button" data-room="{{ room }}">{{ room }}</button>
+            <button class="favorite-button" type="button" data-room="{{ room }}" aria-label="Raum {{ room }} favorisieren">☆</button>
+        </span>
     {% else %}
         <p>Keine freien Räume gefunden (oder gerade keine Daten verfügbar).</p>
     {% endfor %}
@@ -15,7 +24,10 @@
 <h3>Gerade belegt</h3>
 <div class="room-grid">
     {% for room in occupied_rooms %}
-        <button class="room-chip occupied room-button" type="button" data-room="{{ room }}">{{ room }}</button>
+        <span class="room-entry">
+            <button class="room-chip occupied room-button" type="button" data-room="{{ room }}">{{ room }}</button>
+            <button class="favorite-button" type="button" data-room="{{ room }}" aria-label="Raum {{ room }} favorisieren">☆</button>
+        </span>
     {% endfor %}
 </div>
 
@@ -24,12 +36,54 @@
     <p id="room-details-text"></p>
 </div>
 
-<p><a href="{{ url_for('free_rooms') }}">🔄 Aktualisieren</a></p>
+<p><a href="{{ url_for('free_rooms') }}">🔄 Aktualisieren</a> · Aktualisiert automatisch alle 30 Sekunden</p>
 <script>
     const nextLessons = {{ next_lessons|tojson }};
+    const favoriteKey = 'raumradar-favorite-rooms';
+    const favoriteRooms = new Set(JSON.parse(localStorage.getItem(favoriteKey) || '[]'));
     const details = document.getElementById('room-details');
     const title = document.getElementById('room-details-title');
     const text = document.getElementById('room-details-text');
+    const favoriteContainer = document.getElementById('favorite-rooms');
+    const loadingMessage = document.getElementById('loading-message');
+
+    function renderFavorites() {
+        favoriteContainer.replaceChildren();
+        const availableRooms = [...document.querySelectorAll('.room-button')].map((button) => button.dataset.room);
+        const favorites = [...favoriteRooms].filter((room) => availableRooms.includes(room));
+        if (!favorites.length) {
+            const empty = document.createElement('p');
+            empty.className = 'favorite-empty';
+            empty.textContent = 'Noch keine Favoriten markiert.';
+            favoriteContainer.append(empty);
+            return;
+        }
+        favorites.forEach((room) => {
+            const shortcut = document.createElement('button');
+            shortcut.className = 'room-chip favorite-chip';
+            shortcut.type = 'button';
+            shortcut.textContent = `★ ${room}`;
+            shortcut.addEventListener('click', () => document.querySelector(`.room-button[data-room="${room}"]`).click());
+            favoriteContainer.append(shortcut);
+        });
+    }
+
+    document.querySelectorAll('.favorite-button').forEach((button) => {
+        const room = button.dataset.room;
+        const update = () => {
+            const isFavorite = favoriteRooms.has(room);
+            button.textContent = isFavorite ? '★' : '☆';
+            button.classList.toggle('is-favorite', isFavorite);
+            button.setAttribute('aria-label', isFavorite ? `Raum ${room} aus Favoriten entfernen` : `Raum ${room} favorisieren`);
+        };
+        update();
+        button.addEventListener('click', () => {
+            favoriteRooms.has(room) ? favoriteRooms.delete(room) : favoriteRooms.add(room);
+            localStorage.setItem(favoriteKey, JSON.stringify([...favoriteRooms]));
+            update();
+            renderFavorites();
+        });
+    });
 
     document.querySelectorAll('.room-button').forEach((button) => {
         button.addEventListener('click', () => {
@@ -43,5 +97,9 @@
             details.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         });
     });
+
+    renderFavorites();
+    window.setTimeout(() => window.location.reload(), 30000);
+    window.addEventListener('beforeunload', () => { loadingMessage.hidden = false; });
 </script>
 {% endblock %}
