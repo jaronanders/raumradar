@@ -114,6 +114,21 @@ button:hover { opacity: 1; filter: brightness(1.05); transform: translateY(-1px)
     font-weight: 600;
 }
 .room-entry { display: inline-flex; align-items: center; }
+.favorite-section {
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid #eadbd5;
+    border-radius: 10px;
+    padding: 0.2rem 0.8rem 0.75rem;
+    margin: 1.25rem 0;
+}
+.favorite-section h3 { margin: 0.6rem 0 0.4rem; }
+.favorite-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.2rem;
+}
 .favorite-button {
     background: transparent;
     color: var(--coral);
@@ -122,10 +137,37 @@ button:hover { opacity: 1; filter: brightness(1.05); transform: translateY(-1px)
     box-shadow: none;
 }
 .favorite-button.is-favorite { color: #d45d35; }
-.favorite-chip { background: var(--coral); color: white; box-shadow: 0 3px 8px rgba(232, 107, 79, 0.25); }
+.favorite-chip {
+    background: var(--coral);
+    color: white;
+    padding: 0.45rem 0.8rem;
+    border-radius: 20px;
+    box-shadow: 0 3px 8px rgba(232, 107, 79, 0.25);
+}
 .favorite-empty,
 .loading-message { color: #666; font-size: 0.9rem; }
 .loading-message { font-weight: bold; }
+.refresh-row {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-top: 1.25rem;
+    color: #666;
+    font-size: 0.85rem;
+}
+.refresh-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--navy);
+    color: white;
+    padding: 0.55rem 0.8rem;
+    border-radius: 7px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+.refresh-button:hover { background: var(--navy-light, #34395f); transform: translateY(-1px); }
 .room-button { border: 0; }
 .room-button:hover { transform: translateY(-1px); }
 .room-details {
