@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Mein Stundenplan</h2>
+<p>{{ current_date }}</p>
+
+<ul class="timetable-list">
+    {% for lesson in lessons %}
+    <li class="timetable-item">
+        <span class="timetable-time">{{ lesson.start }}-{{ lesson.end }}</span>
+        <span>
+            <strong>{{ lesson.subject }}</strong>
+            <span class="timetable-meta">Raum: {{ lesson.room }} | Lehrkraft: {{ lesson.teacher }}</span>
+        </span>
+    </li>
+    {% else %}
+    <li>Heute sind keine Unterrichtsstunden eingetragen.</li>
+    {% endfor %}
+</ul>
+{% endblock %}
