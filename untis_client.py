@@ -43,7 +43,7 @@ class UntisClient:
             "client": "RaumRadar",
         })
         self.session_id = result["sessionId"]
-        self.user_id = result.get("personId")
+        self.user_id = None
         self.class_id = result.get("klasseId") or result.get("classId")
         return result
 
@@ -68,19 +68,9 @@ class UntisClient:
         day = day or date.today()
         monday = day - timedelta(days=day.weekday())
         friday = monday + timedelta(days=4)
-        if self.user_id is None:
-            if self.class_id is None:
-                raise UntisError("WebUntis hat weder Personen- noch Klassen-ID geliefert.")
-            return self.get_timetable_for_klasse(self.class_id, day)
-        result = self._rpc("getTimetable", {
-            "id": self.user_id,
-            "type": 4,
-            "startDate": int(monday.strftime("%Y%m%d")),
-            "endDate": int(friday.strftime("%Y%m%d")),
-        })
-        if isinstance(result, dict):
-            return result.get("data") or result.get("timetable") or result.get("lessons") or []
-        return result
+        if self.class_id is None:
+            raise UntisError("WebUntis hat keine Klassen-ID geliefert.")
+        return self.get_timetable_for_klasse(self.class_id, day)
 
     def get_timetable_for_klasse(self, klasse_id, day=None):
         """Stundenplan einer einzelnen Klasse für einen Tag (default: heute)."""
