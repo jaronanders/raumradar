@@ -15,6 +15,7 @@
         {% if session.get('untis_session') %}
         <nav>
             <a href="{{ url_for('free_rooms') }}">Freie Räume</a>
+            <a href="{{ url_for('timetable') }}">Mein Stundenplan</a>
             <a href="{{ url_for('homework') }}">Hausaufgaben</a>
             <a href="{{ url_for('logout') }}">Logout</a>
         </nav>
