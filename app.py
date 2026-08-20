@@ -13,6 +13,7 @@ Dann im Browser öffnen:
 from datetime import datetime, date
 import os
 import secrets
+import time
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_session import Session
 
@@ -27,6 +28,9 @@ os.makedirs(app.config["SESSION_FILE_DIR"], exist_ok=True)
 Session(app)
 
 database.init_db()
+
+ROOM_DATA_CACHE = {}
+ROOM_DATA_CACHE_SECONDS = 30
 
 
 def get_current_stunde_zeit():
@@ -96,6 +100,27 @@ def get_client_from_session():
     return client
 
 
+def get_room_data(client):
+    cache_key = (
+        session["untis_school"],
+        session["untis_server"],
+        session["untis_username"],
+        date.today(),
+    )
+    cached = ROOM_DATA_CACHE.get(cache_key)
+    if cached and time.monotonic() - cached["created"] < ROOM_DATA_CACHE_SECONDS:
+        return cached["rooms"], cached["lessons"]
+
+    rooms = client.get_rooms()
+    lessons = client.get_full_timetable(day=date.today())
+    ROOM_DATA_CACHE[cache_key] = {
+        "created": time.monotonic(),
+        "rooms": rooms,
+        "lessons": lessons,
+    }
+    return rooms, lessons
+
+
 @app.route("/free-rooms")
 def free_rooms():
     if "untis_session" not in session:
@@ -103,8 +128,7 @@ def free_rooms():
 
     try:
         client = get_client_from_session()
-        rooms = client.get_rooms()
-        lessons = client.get_full_timetable(day=date.today())
+        rooms, lessons = get_room_data(client)
     except UntisError as e:
         session.clear()
         flash(f"Fehler beim Abrufen der Daten: {e}")
