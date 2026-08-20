@@ -5,10 +5,12 @@
 <p>{{ free_rooms|length }} von {{ total_rooms }} Räumen gerade frei.</p>
 <p id="loading-message" class="loading-message" hidden>Daten werden geladen ...</p>
 
-<h3>Favoriten</h3>
-<div id="favorite-rooms" class="room-grid">
+<section class="favorite-section">
+<h3>Deine Favoriten</h3>
+<div id="favorite-rooms" class="favorite-grid">
     <p class="favorite-empty">Noch keine Favoriten markiert.</p>
 </div>
+</section>
 
 <div class="room-grid">
     {% for room in free_rooms %}
@@ -36,7 +38,10 @@
     <p id="room-details-text"></p>
 </div>
 
-<p><a href="{{ url_for('free_rooms') }}">🔄 Aktualisieren</a> · Aktualisiert automatisch alle 30 Sekunden</p>
+<div class="refresh-row">
+    <a class="refresh-button" href="{{ url_for('free_rooms') }}">↻ <span>Aktualisieren</span></a>
+    <span>Automatisch alle 30 Sekunden</span>
+</div>
 <script>
     const nextLessons = {{ next_lessons|tojson }};
     const favoriteKey = 'raumradar-favorite-rooms';
@@ -60,7 +65,7 @@
         }
         favorites.forEach((room) => {
             const shortcut = document.createElement('button');
-            shortcut.className = 'room-chip favorite-chip';
+            shortcut.className = 'favorite-chip';
             shortcut.type = 'button';
             shortcut.textContent = `★ ${room}`;
             shortcut.addEventListener('click', () => document.querySelector(`.room-button[data-room="${room}"]`).click());
