@@ -4,6 +4,8 @@
     --teal: #0071e3;
     --teal-dark: #0066cc;
     --mint: #e8f2ff;
+    --blue-glow: #5ac8fa;
+    --blue-soft: #dceeff;
     --coral: #ff375f;
     --bg: #f5f5f7;
     --white: #ffffff;
@@ -16,21 +18,24 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
-    background: var(--bg);
+    background:
+        radial-gradient(circle at 8% 8%, rgba(90, 200, 250, 0.22), transparent 24rem),
+        radial-gradient(circle at 92% 28%, rgba(0, 113, 227, 0.12), transparent 26rem),
+        var(--bg);
     color: var(--navy);
     margin: 0;
 }
 
 header {
-    background: rgba(255, 255, 255, 0.86);
-    color: white;
+    background: rgba(255, 255, 255, 0.68);
     color: var(--navy);
     padding: 0.85rem 2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
-    backdrop-filter: saturate(180%) blur(18px);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08), 0 8px 28px rgba(0, 74, 173, 0.08);
+    backdrop-filter: saturate(180%) blur(22px);
+    -webkit-backdrop-filter: saturate(180%) blur(22px);
 }
 
 header h1 { margin: 0; font-size: 1.25rem; letter-spacing: -0.02em; }
@@ -49,7 +54,13 @@ nav a:hover { color: var(--navy); background: #e8e8ed; text-decoration: none; }
 main {
     max-width: 920px;
     margin: 3.5rem auto;
-    padding: 0 1.5rem 4rem;
+    padding: 1.75rem 1.5rem 4rem;
+    background: rgba(255, 255, 255, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 28px;
+    box-shadow: 0 20px 50px rgba(0, 64, 130, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
 }
 
 h2 { margin-top: 0; font-size: clamp(2rem, 5vw, 3.2rem); letter-spacing: -0.055em; line-height: 1.05; }
@@ -85,7 +96,7 @@ form input {
 form input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--mint); }
 
 button {
-    background: var(--teal);
+    background: linear-gradient(145deg, #1590ff, var(--teal));
     color: white;
     border: none;
     padding: 0.65rem 1.05rem;
@@ -93,9 +104,11 @@ button {
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
+    box-shadow: 0 5px 0 #005bb5, 0 9px 16px rgba(0, 113, 227, 0.2);
     transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
 }
-button:hover { opacity: 1; filter: brightness(1.05); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(30, 33, 64, 0.14); }
+button:hover { opacity: 1; filter: brightness(1.05); transform: translateY(-2px); box-shadow: 0 7px 0 #005bb5, 0 13px 22px rgba(0, 113, 227, 0.24); }
+button:active { transform: translateY(2px); box-shadow: 0 2px 0 #005bb5, 0 5px 10px rgba(0, 113, 227, 0.16); }
 
 .hint { font-size: 0.85rem; color: var(--muted); margin-top: 1rem; line-height: 1.5; }
 
@@ -189,15 +202,16 @@ button:hover { opacity: 1; filter: brightness(1.05); transform: translateY(-1px)
 .room-details h3,
 .room-details p { margin: 0.2rem 0; }
 .room-chip.free {
-    background: rgba(255, 255, 255, 0.78);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(220, 238, 255, 0.7));
     color: var(--navy);
     border: 1px solid rgba(255, 255, 255, 0.95);
-    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    box-shadow: 0 7px 0 #bfdcf6, 0 12px 20px rgba(0, 83, 170, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(14px) saturate(140%);
 }
 .room-chip.free:hover {
     background: #ffffff;
-    box-shadow: 0 7px 18px rgba(0, 0, 0, 0.14), inset 0 1px 0 #ffffff;
+    box-shadow: 0 9px 0 #bfdcf6, 0 16px 24px rgba(0, 83, 170, 0.18), inset 0 1px 0 #ffffff;
+    transform: translateY(-2px);
 }
 .room-chip.occupied {
     background: #e8e8ed;
