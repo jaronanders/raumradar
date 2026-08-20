@@ -9,7 +9,7 @@
 
 body {
     font-family: -apple-system, "Segoe UI", Arial, sans-serif;
-    background: var(--bg);
+    background: linear-gradient(145deg, #F7F7F4 0%, #eef7f5 100%);
     color: var(--navy);
     margin: 0;
 }
@@ -21,6 +21,7 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 3px 14px rgba(30, 33, 64, 0.18);
 }
 
 header h1 { margin: 0; font-size: 1.4rem; }
@@ -30,8 +31,11 @@ nav a {
     text-decoration: none;
     margin-left: 1.2rem;
     opacity: 0.85;
+    padding: 0.35rem 0.55rem;
+    border-radius: 6px;
+    transition: background 0.2s ease, opacity 0.2s ease;
 }
-nav a:hover { opacity: 1; text-decoration: underline; }
+nav a:hover { opacity: 1; background: rgba(255, 255, 255, 0.12); text-decoration: none; }
 
 main {
     max-width: 700px;
@@ -70,8 +74,9 @@ button {
     border-radius: 6px;
     cursor: pointer;
     font-size: 0.9rem;
+    transition: transform 0.15s ease, filter 0.15s ease;
 }
-button:hover { opacity: 0.9; }
+button:hover { opacity: 1; filter: brightness(1.05); transform: translateY(-1px); }
 
 .hint { font-size: 0.85rem; color: #666; margin-top: 1rem; }
 
@@ -86,6 +91,7 @@ button:hover { opacity: 0.9; }
     padding: 0.4rem 0.8rem;
     border-radius: 20px;
     font-size: 0.9rem;
+    box-shadow: 0 2px 5px rgba(30, 33, 64, 0.1);
 }
 .room-entry { display: inline-flex; align-items: center; }
 .favorite-button {
@@ -93,6 +99,7 @@ button:hover { opacity: 0.9; }
     color: var(--coral);
     padding: 0.25rem;
     font-size: 1.1rem;
+    box-shadow: none;
 }
 .favorite-button.is-favorite { color: #d45d35; }
 .favorite-chip { background: var(--coral); color: white; }
@@ -106,6 +113,7 @@ button:hover { opacity: 0.9; }
     border-left: 4px solid var(--coral);
     padding: 0.8rem 1rem;
     margin: 1rem 0;
+    box-shadow: 0 4px 14px rgba(30, 33, 64, 0.08);
 }
 .room-details h3,
 .room-details p { margin: 0.2rem 0; }
@@ -169,6 +177,7 @@ button:hover { opacity: 0.9; }
     margin-bottom: 0.6rem;
     border-radius: 10px;
     border-left: 4px solid var(--teal);
+    box-shadow: 0 3px 10px rgba(30, 33, 64, 0.06);
 }
 .homework-list li.done {
     opacity: 0.5;
