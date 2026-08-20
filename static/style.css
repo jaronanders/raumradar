@@ -1,182 +1,24 @@
-:root {
-    --navy: #1E2140;
-    --teal: #2AA89A;
-    --coral: #FF7A59;
-    --bg: #F7F7F4;
-}
-
-* { box-sizing: border-box; }
-
-body {
-    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
-    background: var(--bg);
-    color: var(--navy);
-    margin: 0;
-}
-
-header {
-    background: var(--navy);
-    color: white;
-    padding: 1rem 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-header h1 { margin: 0; font-size: 1.4rem; }
-
-nav a {
-    color: white;
-    text-decoration: none;
-    margin-left: 1.2rem;
-    opacity: 0.85;
-}
-nav a:hover { opacity: 1; text-decoration: underline; }
-
-main {
-    max-width: 700px;
-    margin: 2rem auto;
-    padding: 0 1rem;
-}
-
-.flashes {
-    list-style: none;
-    padding: 0.8rem 1rem;
-    background: #fff3ec;
-    border-left: 4px solid var(--coral);
-    margin-bottom: 1.5rem;
-}
-
-form label {
-    display: block;
-    margin-bottom: 0.8rem;
-    font-size: 0.9rem;
-}
-
-form input {
-    display: block;
-    width: 100%;
-    padding: 0.5rem;
-    margin-top: 0.3rem;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-}
-
-button {
-    background: var(--teal);
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9rem;
-}
-button:hover { opacity: 0.9; }
-
-.hint { font-size: 0.85rem; color: #666; margin-top: 1rem; }
-
-.room-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin: 1rem 0;
-}
-
-.room-chip {
-    padding: 0.4rem 0.8rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
-}
-.room-entry { display: inline-flex; align-items: center; }
-.favorite-button {
-    background: transparent;
-    color: var(--coral);
-    padding: 0.25rem;
-    font-size: 1.1rem;
-}
-.favorite-button.is-favorite { color: #d45d35; }
-.favorite-chip { background: var(--coral); color: white; }
-.favorite-empty,
-.loading-message { color: #666; font-size: 0.9rem; }
-.loading-message { font-weight: bold; }
-.room-button { border: 0; }
-.room-button:hover { transform: translateY(-1px); }
-.room-details {
-    background: white;
-    border-left: 4px solid var(--coral);
-    padding: 0.8rem 1rem;
-    margin: 1rem 0;
-}
-.room-details h3,
-.room-details p { margin: 0.2rem 0; }
-.room-chip.free { background: var(--teal); color: white; }
-.room-chip.occupied { background: #ddd; color: #555; }
-
-.timetable-week {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(160px, 1fr));
-    gap: 0.75rem;
-    overflow-x: auto;
-    align-items: start;
-}
-.timetable-day {
-    min-width: 160px;
-    background: #eef1ef;
-    padding: 0.65rem;
-    border-radius: 8px;
-}
-.timetable-day h3 { margin: 0 0 0.65rem; }
-.timetable-day h3 small {
-    display: block;
-    color: #666;
-    font-size: 0.75rem;
-    font-weight: normal;
-}
-.timetable-card {
-    background: white;
-    padding: 0.7rem;
-    margin-bottom: 0.6rem;
-    border-left: 4px solid var(--teal);
-    border-radius: 5px;
-}
-.timetable-card.is-past { opacity: 0.5; border-left-color: #999; }
-.timetable-card.is-current { border-left-color: var(--coral); }
-.timetable-card-subject,
-.timetable-card-time,
-.timetable-meta,
-.timetable-status { display: block; }
-.timetable-card-time { font-weight: bold; margin: 0.25rem 0; }
-.timetable-meta {
-    display: block;
-    color: #666;
-    font-size: 0.85rem;
-    margin-top: 0.2rem;
-}
-.timetable-status {
-    margin-top: 0.35rem;
-    color: var(--teal);
-    font-size: 0.8rem;
-    font-weight: bold;
-}
-.timetable-status.vorbei { color: #888; }
-.timetable-status.läuft-gerade { color: var(--coral); }
-.timetable-empty { color: #666; font-size: 0.85rem; }
-
-.homework-list { list-style: none; padding: 0; }
-.homework-list li {
-    background: white;
-    padding: 0.8rem 1rem;
-    margin-bottom: 0.6rem;
-    border-radius: 8px;
-    border-left: 4px solid var(--teal);
-}
-.homework-list li.done {
-    opacity: 0.5;
-    border-left-color: #aaa;
-    text-decoration: line-through;
-}
-.homework-list .due {
-    display: block;
-    font-size: 0.8rem;
-    color: var(--coral);
-}
+{% extends "base.html" %}
+{% block content %}
+<h2>Login mit deinem Untis-Account</h2>
+<form method="POST" class="login-form">
+    <label>Schulname
+        <input type="text" name="school" value="mdg-moelln" autocomplete="organization" required>
+    </label>
+    <label>Server
+        <input type="text" name="server" value="mdg-moelln.webuntis.com" autocomplete="url" required>
+    </label>
+    <label>Benutzername
+        <input type="text" name="username" required>
+    </label>
+    <label>Passwort
+        <input type="password" name="password" required>
+    </label>
+    <button type="submit">Einloggen</button>
+</form>
+<p class="hint">
+    Tipp: Schulname und Server findest du in deiner Untis-Login-URL,
+    z.B. bei https://nessa.webuntis.com/WebUntis/?school=dein-schulname
+    ist "nessa.webuntis.com" der Server und "dein-schulname" die Schule.
+</p>
+{% endblock %}
