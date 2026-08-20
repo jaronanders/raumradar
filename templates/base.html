@@ -35,6 +35,55 @@
         {% block content %}{% endblock %}
     </main>
     <script>
+        let roomRadarAudioContext;
+
+        function getRoomRadarAudioContext() {
+            roomRadarAudioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+            if (roomRadarAudioContext.state === 'suspended') {
+                roomRadarAudioContext.resume();
+            }
+            return roomRadarAudioContext;
+        }
+
+        function playRoomRadarPop() {
+            const audioContext = getRoomRadarAudioContext();
+            const oscillator = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            const startTime = audioContext.currentTime;
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(620, startTime);
+            oscillator.frequency.exponentialRampToValueAtTime(900, startTime + 0.07);
+            gain.gain.setValueAtTime(0.0001, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.045, startTime + 0.008);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.09);
+            oscillator.connect(gain).connect(audioContext.destination);
+            oscillator.start(startTime);
+            oscillator.stop(startTime + 0.1);
+        }
+
+        function playRoomRadarSweep() {
+            const audioContext = getRoomRadarAudioContext();
+            const oscillator = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            const startTime = audioContext.currentTime;
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(420, startTime);
+            oscillator.frequency.exponentialRampToValueAtTime(980, startTime + 0.42);
+            gain.gain.setValueAtTime(0.0001, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.06, startTime + 0.04);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.48);
+            oscillator.connect(gain).connect(audioContext.destination);
+            oscillator.start(startTime);
+            oscillator.stop(startTime + 0.5);
+        }
+
+        document.addEventListener('click', (event) => {
+            const interactiveElement = event.target.closest('button, .room-chip, .refresh-button, nav a');
+            if (interactiveElement && !interactiveElement.matches('.login-form button')) {
+                playRoomRadarPop();
+            }
+        });
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js'));
         }
