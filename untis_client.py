@@ -42,7 +42,8 @@ class UntisClient:
             "client": "RaumRadar",
         })
         self.session_id = result["sessionId"]
-        self.user_id = result.get("personId") or result.get("userId")
+        user_data = self._rpc("getUserData", {})
+        self.user_id = user_data.get("personId") or user_data.get("userId")
         return result
 
     def logout(self):
