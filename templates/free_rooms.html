@@ -6,7 +6,7 @@
 
 <div class="room-grid">
     {% for room in free_rooms %}
-        <div class="room-chip free">{{ room }}</div>
+        <button class="room-chip free room-button" type="button" data-room="{{ room }}">{{ room }}</button>
     {% else %}
         <p>Keine freien Räume gefunden (oder gerade keine Daten verfügbar).</p>
     {% endfor %}
@@ -15,9 +15,33 @@
 <h3>Gerade belegt</h3>
 <div class="room-grid">
     {% for room in occupied_rooms %}
-        <div class="room-chip occupied">{{ room }}</div>
+        <button class="room-chip occupied room-button" type="button" data-room="{{ room }}">{{ room }}</button>
     {% endfor %}
 </div>
 
+<div id="room-details" class="room-details" hidden>
+    <h3 id="room-details-title"></h3>
+    <p id="room-details-text"></p>
+</div>
+
 <p><a href="{{ url_for('free_rooms') }}">🔄 Aktualisieren</a></p>
+<script>
+    const nextLessons = {{ next_lessons|tojson }};
+    const details = document.getElementById('room-details');
+    const title = document.getElementById('room-details-title');
+    const text = document.getElementById('room-details-text');
+
+    document.querySelectorAll('.room-button').forEach((button) => {
+        button.addEventListener('click', () => {
+            const room = button.dataset.room;
+            const lesson = nextLessons[room];
+            title.textContent = `Raum ${room}`;
+            text.textContent = lesson
+                ? `Nächster Unterricht: ${lesson.start}-${lesson.end} Uhr (${lesson.subject})`
+                : 'Heute findet hier kein weiterer Unterricht statt.';
+            details.hidden = false;
+            details.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+    });
+</script>
 {% endblock %}
