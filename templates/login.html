@@ -39,6 +39,7 @@
         const form = event.currentTarget;
         const overlay = document.getElementById('login-loading');
         const submitButton = form.querySelector('button[type="submit"]');
+        playRoomRadarSweep();
         overlay.hidden = false;
         submitButton.disabled = true;
         submitButton.textContent = 'Wird verbunden ...';
