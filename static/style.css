@@ -100,20 +100,40 @@ button:hover { opacity: 0.9; }
 .room-chip.free { background: var(--teal); color: white; }
 .room-chip.occupied { background: #ddd; color: #555; }
 
-.timetable-list {
-    list-style: none;
-    padding: 0;
-}
-.timetable-item {
+.timetable-week {
     display: grid;
-    grid-template-columns: 7rem 1fr;
-    gap: 0.8rem;
+    grid-template-columns: repeat(5, minmax(160px, 1fr));
+    gap: 0.75rem;
+    overflow-x: auto;
+    align-items: start;
+}
+.timetable-day {
+    min-width: 160px;
+    background: #eef1ef;
+    padding: 0.65rem;
+    border-radius: 8px;
+}
+.timetable-day h3 { margin: 0 0 0.65rem; }
+.timetable-day h3 small {
+    display: block;
+    color: #666;
+    font-size: 0.75rem;
+    font-weight: normal;
+}
+.timetable-card {
     background: white;
-    padding: 0.8rem 1rem;
+    padding: 0.7rem;
     margin-bottom: 0.6rem;
     border-left: 4px solid var(--teal);
+    border-radius: 5px;
 }
-.timetable-time { font-weight: bold; }
+.timetable-card.is-past { opacity: 0.5; border-left-color: #999; }
+.timetable-card.is-current { border-left-color: var(--coral); }
+.timetable-card-subject,
+.timetable-card-time,
+.timetable-meta,
+.timetable-status { display: block; }
+.timetable-card-time { font-weight: bold; margin: 0.25rem 0; }
 .timetable-meta {
     display: block;
     color: #666;
@@ -121,7 +141,6 @@ button:hover { opacity: 0.9; }
     margin-top: 0.2rem;
 }
 .timetable-status {
-    display: inline-block;
     margin-top: 0.35rem;
     color: var(--teal);
     font-size: 0.8rem;
@@ -129,6 +148,7 @@ button:hover { opacity: 0.9; }
 }
 .timetable-status.vorbei { color: #888; }
 .timetable-status.läuft-gerade { color: var(--coral); }
+.timetable-empty { color: #666; font-size: 0.85rem; }
 
 .homework-list { list-style: none; padding: 0; }
 .homework-list li {
