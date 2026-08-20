@@ -68,12 +68,15 @@ class UntisClient:
         friday = monday + timedelta(days=4)
         if self.user_id is None:
             raise UntisError("Die Benutzer-ID wurde von WebUntis nicht geliefert.")
-        return self._rpc("getTimetable", {
+        result = self._rpc("getTimetable", {
             "id": self.user_id,
             "type": 5,
             "startDate": int(monday.strftime("%Y%m%d")),
             "endDate": int(friday.strftime("%Y%m%d")),
         })
+        if isinstance(result, dict):
+            return result.get("data") or result.get("timetable") or result.get("lessons") or []
+        return result
 
     def get_timetable_for_klasse(self, klasse_id, day=None):
         """Stundenplan einer einzelnen Klasse für einen Tag (default: heute)."""
