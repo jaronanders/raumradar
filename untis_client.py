@@ -23,6 +23,7 @@ class UntisClient:
         self.base_url = f"https://{server}/WebUntis/jsonrpc.do?school={school}"
         self.session = requests.Session()
         self.session_id = None
+        self.user_id = None
 
     def _rpc(self, method, params):
         payload = {"id": "req", "method": method, "params": params, "jsonrpc": "2.0"}
@@ -41,6 +42,7 @@ class UntisClient:
             "client": "RaumRadar",
         })
         self.session_id = result["sessionId"]
+        self.user_id = result.get("userId") or result.get("personId")
         return result
 
     def logout(self):
@@ -63,7 +65,11 @@ class UntisClient:
         """Gibt den persönlichen Stundenplan für einen Tag zurück."""
         day = day or date.today()
         day_int = int(day.strftime("%Y%m%d"))
-        return self._rpc("getOwnTimetable", {
+        if self.user_id is None:
+            raise UntisError("Die Benutzer-ID wurde von WebUntis nicht geliefert.")
+        return self._rpc("getTimetable", {
+            "id": self.user_id,
+            "type": 5,
             "startDate": day_int,
             "endDate": day_int,
         })
