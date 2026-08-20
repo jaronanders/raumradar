@@ -10,7 +10,7 @@ Dann im Browser öffnen:
     http://127.0.0.1:5000
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 import os
 import secrets
 import time
@@ -54,77 +54,6 @@ def get_local_date():
     return datetime.now(LOCAL_TIMEZONE).date()
 
 
-def format_lesson_people(items):
-    if isinstance(items, dict):
-        items = [items]
-    if isinstance(items, str):
-        return items
-    names = []
-    for item in items or []:
-        if isinstance(item, str):
-            name = item
-        else:
-            name = (
-                item.get("name")
-                or item.get("longName")
-                or item.get("shortName")
-                or item.get("displayName")
-                or item.get("text")
-            )
-        if name and name not in names:
-            names.append(name)
-    return ", ".join(names)
-
-
-def get_lesson_values(lesson, *keys):
-    for key in keys:
-        values = lesson.get(key)
-        if values:
-            return values
-    return []
-
-
-def find_lesson_values(lesson, keys):
-    """Findet Entitäten auch, wenn die Untis-Antwort sie verschachtelt liefert."""
-    values = get_lesson_values(lesson, *keys)
-    if values:
-        return values
-    for value in lesson.values():
-        if isinstance(value, dict):
-            nested = find_lesson_values(value, keys)
-            if nested:
-                return nested
-        elif isinstance(value, list):
-            for item in value:
-                if isinstance(item, dict):
-                    nested = find_lesson_values(item, keys)
-                    if nested:
-                        return nested
-    return []
-
-
-def get_lesson_text(lesson, keys):
-    for key in keys:
-        value = lesson.get(key)
-        if isinstance(value, str) and value:
-            return value
-    return ""
-
-
-def normalize_lesson_date(value):
-    if isinstance(value, date):
-        return value
-    if isinstance(value, int):
-        value = str(value)
-    if isinstance(value, str):
-        for date_format in ("%Y%m%d", "%Y-%m-%d", "%d.%m.%Y"):
-            try:
-                return datetime.strptime(value[:10], date_format).date()
-            except ValueError:
-                continue
-    return None
-
-
 @app.route("/")
 def index():
     if "untis_session" not in session:
@@ -162,8 +91,6 @@ def login():
         session["untis_server"] = server
         session["untis_username"] = username
         session["untis_session"] = client.session_id
-        session["untis_user_id"] = client.user_id
-        session["untis_class_id"] = client.class_id
 
         flash("Erfolgreich eingeloggt!")
         return redirect(url_for("free_rooms"))
@@ -185,8 +112,6 @@ def get_client_from_session():
     """Baut aus der Browser-Session einen UntisClient ohne Passwort auf."""
     client = UntisClient(session["untis_school"], session["untis_server"])
     client.session_id = session["untis_session"]
-    client.user_id = session.get("untis_user_id")
-    client.class_id = session.get("untis_class_id")
     return client
 
 
@@ -268,63 +193,6 @@ def free_rooms():
         next_lessons=next_lessons,
         total_rooms=len(all_room_names),
         current_time=datetime.now(LOCAL_TIMEZONE).strftime("%H:%M"),
-    )
-
-
-@app.route("/timetable")
-def timetable():
-    if "untis_session" not in session:
-        return redirect(url_for("login"))
-
-    try:
-        client = get_client_from_session()
-        lessons = client.get_own_timetable(day=get_local_date())
-    except UntisError as e:
-        flash(f"Stundenplan konnte nicht geladen werden: {e}")
-        return redirect(url_for("free_rooms"))
-
-    timetable_items = []
-    current_time = get_current_stunde_zeit()
-    today = get_local_date()
-    weekday_names = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"]
-    for lesson in sorted(lessons, key=lambda item: (str(item.get("date", item.get("startDate", ""))), item.get("startTime", 0))):
-        start = lesson.get("startTime", 0)
-        end = lesson.get("endTime", 0)
-        subjects = format_lesson_people(find_lesson_values(lesson, ("su", "subjects", "subject"))) or get_lesson_text(lesson, ("subjectName", "subjectText"))
-        rooms = format_lesson_people(find_lesson_values(lesson, ("ro", "rooms", "room"))) or get_lesson_text(lesson, ("roomName", "roomText"))
-        teachers = format_lesson_people(find_lesson_values(lesson, ("te", "teachers", "teacher"))) or get_lesson_text(lesson, ("teacherName", "teacherText"))
-        lesson_date = normalize_lesson_date(lesson.get("date") or lesson.get("startDate"))
-        if lesson_date == today and end < current_time:
-            status = "Vorbei"
-        elif lesson_date == today and start <= current_time <= end:
-            status = "Läuft gerade"
-        else:
-            status = "Als Nächstes"
-        timetable_items.append({
-            "date": lesson_date,
-            "weekday": weekday_names[lesson_date.weekday()] if lesson_date and lesson_date.weekday() < 5 else "",
-            "start": f"{start // 100:02d}:{start % 100:02d}",
-            "end": f"{end // 100:02d}:{end % 100:02d}",
-            "subject": subjects or "Unterricht",
-            "room": rooms or "-",
-            "teacher": teachers or "-",
-            "status": status,
-        })
-
-    week_start = today - timedelta(days=today.weekday())
-    timetable_days = []
-    for day_offset in range(5):
-        day = week_start + timedelta(days=day_offset)
-        timetable_days.append({
-            "name": weekday_names[day_offset],
-            "date": day.strftime("%d.%m."),
-            "lessons": [lesson for lesson in timetable_items if lesson["date"] == day],
-        })
-
-    return render_template(
-        "timetable.html",
-        days=timetable_days,
-        current_date=get_local_date().strftime("%d.%m.%Y"),
     )
 
 
