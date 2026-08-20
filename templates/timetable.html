@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Mein Stundenplan</h2>
-<p>{{ current_date }}</p>
+<p>Montag bis Freitag</p>
 
 <ul class="timetable-list">
     {% for lesson in lessons %}
     <li class="timetable-item">
-        <span class="timetable-time">{{ lesson.start }}-{{ lesson.end }}</span>
+        <span class="timetable-time">{{ lesson.weekday }}<br>{{ lesson.start }}-{{ lesson.end }}</span>
         <span>
             <strong>{{ lesson.subject }}</strong>
             <span class="timetable-meta">Raum: {{ lesson.room }} | Lehrkraft: {{ lesson.teacher }}</span>
