@@ -196,6 +196,52 @@ def free_rooms():
     )
 
 
+@app.route("/timetable")
+def timetable():
+    if "untis_session" not in session:
+        return redirect(url_for("login"))
+
+    try:
+        client = get_client_from_session()
+        lessons = client.get_own_timetable(day=get_local_date())
+    except UntisError as e:
+        flash(f"Stundenplan konnte nicht geladen werden: {e}")
+        return redirect(url_for("free_rooms"))
+
+    timetable_items = []
+    for lesson in sorted(lessons, key=lambda item: item.get("startTime", 0)):
+        start = lesson.get("startTime", 0)
+        end = lesson.get("endTime", 0)
+        subjects = ", ".join(
+            subject.get("name", "")
+            for subject in lesson.get("su", [])
+            if subject.get("name")
+        )
+        rooms = ", ".join(
+            room.get("name", "")
+            for room in lesson.get("ro", [])
+            if room.get("name")
+        )
+        teachers = ", ".join(
+            teacher.get("name", "")
+            for teacher in lesson.get("te", [])
+            if teacher.get("name")
+        )
+        timetable_items.append({
+            "start": f"{start // 100:02d}:{start % 100:02d}",
+            "end": f"{end // 100:02d}:{end % 100:02d}",
+            "subject": subjects or "Unterricht",
+            "room": rooms or "-",
+            "teacher": teachers or "-",
+        })
+
+    return render_template(
+        "timetable.html",
+        lessons=timetable_items,
+        current_date=get_local_date().strftime("%d.%m.%Y"),
+    )
+
+
 @app.route("/homework", methods=["GET", "POST"])
 def homework():
     if "untis_session" not in session:
