@@ -31,6 +31,15 @@ database.init_db()
 
 ROOM_DATA_CACHE = {}
 ROOM_DATA_CACHE_SECONDS = 30
+ALLOWED_ROOM_NAMES = {
+    "101", "102", "103", "104", "105", "106", "107", "108", "114", "115",
+    "120", "121", "125", "126", "127", "128", "129", "130", "131", "136",
+    "137", "201", "203", "204", "206", "207", "208", "214", "220", "221",
+    "225", "226", "227", "228", "229", "230", "231", "236", "237", "240",
+    "A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08", "A09", "A10",
+    "A11", "B01", "B02", "B03", "B04", "B05", "E01", "E03", "E27", "E29",
+    "E31",
+}
 
 
 def get_current_stunde_zeit():
@@ -145,9 +154,9 @@ def free_rooms():
             for room in lesson.get("ro", []):
                 occupied_room_names.add(room.get("name"))
 
-    all_room_names = {r.get("name") for r in rooms}
+    all_room_names = {r.get("name") for r in rooms} & ALLOWED_ROOM_NAMES
     free_room_names = sorted(all_room_names - occupied_room_names)
-    occupied_sorted = sorted(occupied_room_names)
+    occupied_sorted = sorted(occupied_room_names & ALLOWED_ROOM_NAMES)
 
     return render_template(
         "free_rooms.html",
