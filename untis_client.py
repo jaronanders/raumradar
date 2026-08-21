@@ -57,18 +57,24 @@ class UntisClient:
 
     def get_klassen(self):
         """Gibt alle Klassen der Schule zurück: [{id, name}, ...]"""
-        return self._rpc("getKlassen", {})
+        result = self._rpc("getKlassen", {})
+        if isinstance(result, dict):
+            return result.get("data") or result.get("klassen") or result.get("classes") or []
+        return result
 
     def get_timetable_for_klasse(self, klasse_id, day=None):
         """Stundenplan einer einzelnen Klasse für einen Tag (default: heute)."""
         day = day or date.today()
         day_int = int(day.strftime("%Y%m%d"))
-        return self._rpc("getTimetable", {
+        result = self._rpc("getTimetable", {
             "id": klasse_id,
             "type": 1,  # 1 = Klasse
             "startDate": day_int,
             "endDate": day_int,
         })
+        if isinstance(result, dict):
+            return result.get("data") or result.get("timetable") or result.get("lessons") or []
+        return result
 
     def get_full_timetable(self, day=None):
         """
@@ -83,8 +89,8 @@ class UntisClient:
                 for lesson in lessons:
                     lesson["_klasse_name"] = klasse.get("name")
                 return lessons
-            except UntisError:
-                # Manche Klassen könnten keine Berechtigung erlauben -> überspringen
+            except (UntisError, KeyError, TypeError):
+                # Einzelne Klassen können ohne Berechtigung oder Daten sein.
                 return []
 
         # Die API-Anfragen warten überwiegend auf Netzwerkantworten. Parallel
@@ -97,3 +103,4 @@ class UntisClient:
         for lessons in lesson_groups:
             all_lessons.extend(lessons)
         return all_lessons
+
