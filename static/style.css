@@ -280,10 +280,18 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     width: 100%;
     background: var(--navy);
     color: white;
-    padding: 0.45rem 0.8rem;
+    display: grid;
+    justify-items: center;
+    gap: 0.1rem;
+    padding: 0.45rem 0.55rem;
     border-radius: 999px;
     box-shadow: none;
 }
+.favorite-chip small { font-size: 0.68rem; font-weight: 500; opacity: 0.78; }
+.favorite-chip.favorite-free { background: rgba(255, 255, 255, 0.7); color: var(--navy); border: 1px solid rgba(255, 255, 255, 0.95); }
+.favorite-chip.favorite-free small { color: #22784a; opacity: 1; }
+.favorite-chip.favorite-occupied { background: rgba(205, 207, 215, 0.82); color: #555; border: 1px solid #d5d5da; }
+.favorite-chip.favorite-occupied small { color: #9a3f3f; opacity: 1; }
 .favorite-grid .favorite-empty { grid-column: 1 / -1; margin: 0.25rem 0; }
 .favorite-empty,
 .loading-message { color: #666; font-size: 0.9rem; }
