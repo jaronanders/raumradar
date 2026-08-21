@@ -3,6 +3,9 @@
 <h2>Freie Räume – Stand {{ current_time }} Uhr</h2>
 
 <p>{{ free_rooms|length }} von {{ total_rooms }} Räumen gerade frei.</p>
+{% if not data_available %}
+<p class="data-warning">Keine Stundenplandaten von Untis erhalten – die Raumbelegung ist gerade nicht sicher bestimmbar.</p>
+{% endif %}
 <p id="loading-message" class="loading-message" hidden>Daten werden geladen ...</p>
 
 <section class="favorite-section">
