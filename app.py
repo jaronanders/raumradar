@@ -46,6 +46,9 @@ LOCAL_TIMEZONE = ZoneInfo("Europe/Berlin")
 
 def get_current_stunde_zeit():
     """Grobe Hilfsfunktion: aktuelle Uhrzeit als HHMM-Zahl (Untis-Format)."""
+    test_time = os.environ.get("TEST_TIME")
+    if test_time:
+        return normalize_time(test_time)
     now = datetime.now(LOCAL_TIMEZONE)
     return now.hour * 100 + now.minute
 
@@ -173,7 +176,7 @@ def free_rooms():
         flash(f"Fehler beim Abrufen der Daten: {e}")
         return redirect(url_for("login"))
 
-    current_time = 900
+    current_time = get_current_stunde_zeit()
 
     if not lessons:
         flash("Untis hat für heute keine Stundenplandaten geliefert. Die Raumbelegung ist deshalb nicht sicher bestimmbar.")
@@ -242,7 +245,7 @@ def free_rooms():
         next_lessons=next_lessons,
         data_available=bool(lessons),
         total_rooms=len(all_room_names),
-        current_time=datetime.now(LOCAL_TIMEZONE).strftime("%H:%M"),
+        current_time=f"{current_time // 100:02d}:{current_time % 100:02d}",
     )
 
 
