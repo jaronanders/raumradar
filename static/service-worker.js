@@ -3,6 +3,38 @@ const STATIC_CACHE = "raumradar-static-v1";
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
+self.addEventListener("push", (event) => {
+    let data = {};
+    try {
+        data = event.data ? event.data.json() : {};
+    } catch {
+        data = { body: event.data?.text() || "Neue Nachricht von RaumRadar" };
+    }
+
+    event.waitUntil(
+        self.registration.showNotification(data.title || "RaumRadar", {
+            body: data.body || "Es gibt neue Informationen.",
+            icon: "/static/icon.svg",
+            badge: "/static/icon.svg",
+            data: { url: data.url || "/" },
+        })
+    );
+});
+
+self.addEventListener("notificationclick", (event) => {
+    event.notification.close();
+    const targetUrl = new URL(event.notification.data?.url || "/", self.location.origin).href;
+    event.waitUntil(
+        self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+            const existingClient = clients.find((client) => client.url === targetUrl);
+            if (existingClient) {
+                return existingClient.focus();
+            }
+            return self.clients.openWindow(targetUrl);
+        })
+    );
+});
+
 self.addEventListener("fetch", (event) => {
     if (event.request.method !== "GET") {
         return;

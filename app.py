@@ -11,13 +11,18 @@ Dann im Browser öffnen:
 """
 
 from datetime import datetime, time as uhrzeit
+import atexit
+import json
 import os
 import secrets
+import subprocess
+import sys
 import time
 from threading import Lock
 from zoneinfo import ZoneInfo
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
 from flask_session import Session
+from pywebpush import WebPushException, webpush
 
 from untis_client import UntisClient, UntisError
 import database
@@ -48,6 +53,9 @@ BELEGTE_RAEUME_MITTAGSPAUSE = {
     #TODO: Hier Räume eintragen, die in der Mittagspause belegt sind
 }
 LOCAL_TIMEZONE = ZoneInfo("Europe/Berlin")
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+VAPID_CLAIMS = {"sub": os.environ.get("VAPID_SUBJECT", "mailto:admin@example.com")}
 
 
 def get_current_stunde_zeit():
@@ -180,11 +188,205 @@ def privacy_policy():
     return render_template("privacy_policy.html")
 
 
+def require_login_json():
+    if "untis_session" not in session:
+        return jsonify(error="Nicht eingeloggt."), 401
+    return None
+
+
+@app.get("/api/push/vapid-public-key")
+def push_vapid_public_key():
+    unauthorized = require_login_json()
+    if unauthorized:
+        return unauthorized
+    if not VAPID_PUBLIC_KEY:
+        return jsonify(error="Push-Benachrichtigungen sind noch nicht konfiguriert."), 503
+    return jsonify(publicKey=VAPID_PUBLIC_KEY)
+
+
+@app.post("/api/push/subscribe")
+def push_subscribe():
+    unauthorized = require_login_json()
+    if unauthorized:
+        return unauthorized
+    subscription = request.get_json(silent=True) or {}
+    keys = subscription.get("keys") or {}
+    endpoint = subscription.get("endpoint")
+    p256dh = keys.get("p256dh")
+    auth = keys.get("auth")
+    if not all(isinstance(value, str) and value for value in (endpoint, p256dh, auth)):
+        return jsonify(error="Ungültiges Push-Abonnement."), 400
+    favorite_rooms = subscription.get("favoriteRooms", [])
+    if not isinstance(favorite_rooms, list):
+        return jsonify(error="Ungültige Favoritenliste."), 400
+    favorite_rooms = [
+        normalize_room_name(room)
+        for room in favorite_rooms
+        if normalize_room_name(room) in ALLOWED_ROOM_NAMES
+    ]
+    database.save_push_subscription(
+        session["untis_username"],
+        endpoint,
+        p256dh,
+        auth,
+        favorite_rooms,
+        session["untis_school"],
+        session["untis_server"],
+        session["untis_session"],
+    )
+    return jsonify(ok=True), 201
+
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe():
+    unauthorized = require_login_json()
+    if unauthorized:
+        return unauthorized
+    subscription = request.get_json(silent=True) or {}
+    endpoint = subscription.get("endpoint")
+    if not isinstance(endpoint, str) or not endpoint:
+        return jsonify(error="Endpoint fehlt."), 400
+    database.delete_push_subscription(session["untis_username"], endpoint)
+    return jsonify(ok=True)
+
+
+@app.post("/api/push/favorites")
+def push_favorites():
+    unauthorized = require_login_json()
+    if unauthorized:
+        return unauthorized
+    payload = request.get_json(silent=True) or {}
+    favorite_rooms = payload.get("favoriteRooms", [])
+    if not isinstance(favorite_rooms, list):
+        return jsonify(error="Ungültige Favoritenliste."), 400
+    favorite_rooms = [
+        normalize_room_name(room)
+        for room in favorite_rooms
+        if normalize_room_name(room) in ALLOWED_ROOM_NAMES
+    ]
+    subscription_endpoint = payload.get("endpoint")
+    if not isinstance(subscription_endpoint, str) or not subscription_endpoint:
+        return jsonify(error="Endpoint fehlt."), 400
+    database.update_push_subscription_favorites(
+        session["untis_username"], subscription_endpoint, favorite_rooms
+    )
+    return jsonify(ok=True)
+
+
+def send_push_to_subscription(subscription, title, body, url="/"):
+    push_subscription = {
+        "endpoint": subscription["endpoint"],
+        "keys": {"p256dh": subscription["p256dh"], "auth": subscription["auth"]},
+    }
+    webpush(
+        subscription_info=push_subscription,
+        data=json.dumps({"title": title, "body": body, "url": url}),
+        vapid_private_key=VAPID_PRIVATE_KEY,
+        vapid_claims=VAPID_CLAIMS,
+    )
+
+
+def send_push_notification(username, title, body, url="/"):
+    """Send a notification to all of a user's registered browsers."""
+    if not VAPID_PRIVATE_KEY:
+        raise RuntimeError("VAPID_PRIVATE_KEY ist nicht konfiguriert.")
+
+    sent = 0
+    for subscription in database.get_push_subscriptions(username):
+        try:
+            send_push_to_subscription(subscription, title, body, url)
+            sent += 1
+        except WebPushException as error:
+            status_code = getattr(error.response, "status_code", None)
+            if status_code in (401, 403, 404, 410):
+                database.delete_push_subscription(username, subscription["endpoint"])
+            else:
+                app.logger.warning("Push-Versand fehlgeschlagen: %s", error)
+    return sent
+
+
+def notify_free_favorite_rooms(username, free_room_names):
+    """Notify a user once when one of their favorites becomes free."""
+    free_rooms = {normalize_room_name(room) for room in free_room_names}
+    for subscription in database.get_push_subscriptions(username):
+        favorite_rooms = set(json.loads(subscription["favorite_rooms"] or "[]"))
+        previously_free = set(json.loads(subscription["last_notified_free_rooms"] or "[]"))
+        newly_free = (favorite_rooms & free_rooms) - previously_free
+        try:
+            for room in sorted(newly_free):
+                send_push_to_subscription(
+                    subscription,
+                    "Dein favorisierter Raum ist frei",
+                    f"Raum {room} ist jetzt leer.",
+                    "/free-rooms",
+                )
+        except WebPushException as error:
+            status_code = getattr(getattr(error, "response", None), "status_code", None)
+            if status_code in (401, 403, 404, 410):
+                database.delete_push_subscription(username, subscription["endpoint"])
+            else:
+                app.logger.warning("Push-Versand fehlgeschlagen: %s", error)
+        database.update_push_subscription_notification_state(subscription["endpoint"], free_rooms)
+
+
 def get_client_from_session():
     """Baut aus der Browser-Session einen UntisClient ohne Passwort auf."""
     client = UntisClient(session["untis_school"], session["untis_server"])
     client.session_id = session["untis_session"]
     return client
+
+
+def calculate_room_status(rooms, lessons, current_time):
+    room_names_by_id, room_display_names = room_lookup(rooms)
+
+    occupied_room_names = set()
+    for lesson in lessons:
+        start = normalize_time(lesson.get("startTime", 0))
+        end = normalize_time(lesson.get("endTime", 0))
+        if start <= current_time <= end:
+            occupied_room_names.update(lesson_room_names(lesson, room_names_by_id))
+
+    now = datetime.now(LOCAL_TIMEZONE).time()
+    if uhrzeit(12, 10) <= now < uhrzeit(13, 0):
+        occupied_room_names.update(BELEGTE_RAEUME_MITTAGSPAUSE)
+
+    allowed_room_names = {normalize_room_name(room_name) for room_name in ALLOWED_ROOM_NAMES}
+    all_room_names = set(room_display_names) & allowed_room_names
+    free_names = sorted(
+        all_room_names - occupied_room_names,
+        key=lambda room_name: room_display_names[room_name],
+    )
+    occupied_names = sorted(
+        occupied_room_names & all_room_names,
+        key=lambda room_name: room_display_names[room_name],
+    )
+    free_room_names = [room_display_names[name] for name in free_names]
+    occupied_room_names = [room_display_names[name] for name in occupied_names]
+
+    next_lessons = {room_display_names[room_name]: None for room_name in all_room_names}
+    for lesson in lessons:
+        start = normalize_time(lesson.get("startTime", 0))
+        if start < current_time:
+            continue
+        for room_name in lesson_room_names(lesson, room_names_by_id):
+            if room_name not in next_lessons:
+                continue
+            display_room_name = room_display_names[room_name]
+            current_next = next_lessons[display_room_name]
+            if current_next is None or start < current_next["start_time"]:
+                end = normalize_time(lesson.get("endTime", 0))
+                next_lessons[display_room_name] = {
+                    "start_time": start,
+                    "start": f"{start // 100:02d}:{start % 100:02d}",
+                    "end": f"{end // 100:02d}:{end % 100:02d}",
+                    "subject": ", ".join(
+                        subject.get("name", "")
+                        for subject in lesson.get("su", [])
+                        if subject.get("name")
+                    ) or "Unterricht",
+                }
+
+    return free_room_names, occupied_room_names, next_lessons, len(all_room_names)
 
 
 def get_room_data(client):
@@ -233,61 +435,11 @@ def free_rooms():
     if not lessons:
         flash("Untis hat für heute keine Stundenplandaten geliefert. Die Raumbelegung ist deshalb nicht sicher bestimmbar.")
 
-    room_names_by_id, room_display_names = room_lookup(rooms)
-
-    # Räume herausfinden, die JETZT laut Stundenplan belegt sind
-    occupied_room_names = set()
-    for lesson in lessons:
-        start = normalize_time(lesson.get("startTime", 0))
-        end = normalize_time(lesson.get("endTime", 0))
-        if start <= current_time <= end:
-            occupied_room_names.update(lesson_room_names(lesson, room_names_by_id))
-
-    now = datetime.now(LOCAL_TIMEZONE).time()
-
-    # Mittagspause: bestimmte Räume zusätzlich als belegt markieren
-    if uhrzeit(12, 10) <= now < uhrzeit(13, 0):
-        occupied_room_names.update(BELEGTE_RAEUME_MITTAGSPAUSE)
-
-    allowed_room_names = {
-        normalize_room_name(room_name) for room_name in ALLOWED_ROOM_NAMES
-    }
-    all_room_names = set(room_display_names) & allowed_room_names
-    free_room_names = sorted(
-        (all_room_names - occupied_room_names),
-        key=lambda room_name: room_display_names[room_name],
+    free_room_names, occupied_sorted, next_lessons, total_rooms = calculate_room_status(
+        rooms, lessons, current_time
     )
-    occupied_sorted = sorted(
-        (occupied_room_names & all_room_names),
-        key=lambda room_name: room_display_names[room_name],
-    )
-    free_room_names = [room_display_names[name] for name in free_room_names]
-    occupied_sorted = [room_display_names[name] for name in occupied_sorted]
-
-    next_lessons = {
-        room_display_names[room_name]: None
-        for room_name in all_room_names
-    }
-    for lesson in lessons:
-        start = normalize_time(lesson.get("startTime", 0))
-        if start < current_time:
-            continue
-        for room_name in lesson_room_names(lesson, room_names_by_id):
-            if room_name not in next_lessons:
-                continue
-            display_room_name = room_display_names[room_name]
-            current_next = next_lessons[display_room_name]
-            if current_next is None or start < current_next["start_time"]:
-                next_lessons[display_room_name] = {
-                    "start_time": start,
-                    "start": f"{start // 100:02d}:{start % 100:02d}",
-                    "end": f"{normalize_time(lesson.get('endTime', 0)) // 100:02d}:{normalize_time(lesson.get('endTime', 0)) % 100:02d}",
-                    "subject": ", ".join(
-                        subject.get("name", "")
-                        for subject in lesson.get("su", [])
-                        if subject.get("name")
-                    ) or "Unterricht",
-                }
+    if lessons:
+        notify_free_favorite_rooms(session["untis_username"], free_room_names)
 
     return render_template(
         "free_rooms.html",
@@ -295,7 +447,7 @@ def free_rooms():
         occupied_rooms=occupied_sorted,
         next_lessons=next_lessons,
         data_available=bool(lessons),
-        total_rooms=len(all_room_names),
+        total_rooms=total_rooms,
         current_time=f"{current_time // 100:02d}:{current_time % 100:02d}",
     )
 
@@ -331,9 +483,28 @@ def delete_homework(homework_id):
     return redirect(url_for("homework"))
 
 
+def start_scheduler_process():
+    if os.environ.get("START_SCHEDULER", "1") == "0":
+        return None
+
+    scheduler_path = os.path.join(os.path.dirname(__file__), "scheduler.py")
+    process = subprocess.Popen([sys.executable, scheduler_path])
+
+    def stop_scheduler():
+        if process.poll() is None:
+            process.terminate()
+
+    atexit.register(stop_scheduler)
+    app.logger.info("Scheduler gestartet (PID %s)", process.pid)
+    return process
+
+
 if __name__ == "__main__":
+    debug = os.environ.get("FLASK_DEBUG") == "1"
+    if not debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        start_scheduler_process()
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", "5000")),
-        debug=os.environ.get("FLASK_DEBUG") == "1",
+        debug=debug,
     )

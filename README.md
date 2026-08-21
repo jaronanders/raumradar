@@ -24,6 +24,8 @@ Anzeige der gerade freien Räume, und ein einfaches Hausaufgaben-Modul.
    ```
 6. Im Browser öffnen: **http://127.0.0.1:5000**
 
+`app.py` startet den Scheduler automatisch als eigenen Hintergrundprozess.
+
 ## Login-Daten
 
 Du brauchst:
@@ -41,6 +43,25 @@ Der Startbefehl für einen Produktionsserver ist:
 gunicorn app:app
 ```
 
+Für Push-Benachrichtigungen bei geschlossenem Browser muss zusätzlich der
+Hintergrund-Scheduler dauerhaft laufen:
+
+```text
+python scheduler.py
+```
+
+Bei einem direkten Start mit `python app.py` ist dieser separate Befehl nicht
+nötig. Der separate Worker ist für Produktionsplattformen gedacht, die Web- und
+Hintergrundprozesse getrennt verwalten.
+
+Der Scheduler aktualisiert alle Nutzer mit einem gespeicherten Untis-Login und
+prüft ihre favorisierten Räume. Das Intervall ist standardmäßig 120 Sekunden
+und kann mit `SCHEDULER_INTERVAL_SECONDS` angepasst werden. Auf Plattformen mit
+separaten Worker-Prozessen entspricht der Prozessname `scheduler` dem Eintrag
+im `Procfile`. Der Scheduler speichert keine Passwörter und kann nur eine noch
+gültige Untis-Session wiederverwenden; nach Ablauf muss sich der Nutzer erneut
+einloggen und Push wieder aktivieren.
+
 Im Hosting-Dienst muss die Umgebungsvariable `SECRET_KEY` auf einen langen,
 zufälligen Wert gesetzt werden. Nach dem ersten Aufruf kann die Seite auf dem
 Handy über das Browser-Menü zum Startbildschirm hinzugefügt werden. Die Adresse
@@ -52,6 +73,37 @@ werden.
 - ✅ Login gegen die echte WebUntis-API
 - ✅ Freie Räume für die aktuelle Uhrzeit berechnen (heutiger Tag)
 - ✅ Hausaufgaben/Notizen anlegen, erledigt markieren, löschen (lokal gespeichert in `raumradar.db`)
+- ✅ Browser-Push-Abonnements speichern und Benachrichtigungen über VAPID versenden
+
+## Push-Benachrichtigungen einrichten
+
+Push funktioniert nur über HTTPS (außer auf `localhost`). Erzeuge einmal ein VAPID-Schlüsselpaar
+mit einem geeigneten VAPID-Generator und hinterlege die Werte als Umgebungsvariablen:
+
+```text
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:deine-adresse@example.com
+```
+
+Nach dem Login kann ein Browser über **Benachrichtigungen aktivieren** ein Abonnement anlegen.
+Die Daten werden pro Untis-Benutzer in `raumradar.db` gespeichert. Die Anwendung kann später
+aus einem Scheduler oder einer Hintergrundaufgabe heraus Benachrichtigungen senden:
+
+```python
+from app import send_push_notification
+
+send_push_notification(
+  username="dein-untis-benutzername",
+  title="Stundenausfall",
+  body="Die 3. Stunde in Raum 203 fällt aus.",
+  url="/timetable",
+)
+```
+
+Abgelaufene Browser-Abonnements werden beim Versand automatisch entfernt. Für einen produktiven
+Scheduler sollte die Aufgabe in einem separaten Prozess laufen, da der Webserver selbst nicht
+dauerhaft pollt.
 
 ## Was noch fehlt (nächste Schritte)
 
@@ -62,6 +114,11 @@ werden.
 - ❌ Echte mobile App (das hier ist eine Webanwendung – für iOS/Android bräuchte man
   React Native/Flutter, oder man packt diese Web-App später als PWA)
 - ❌ Mehrtägige Ansicht des Stundenplans (aktuell nur "heute")
+
+## To Do
+
+- Von Flask auf FastAPI o. ä. wechseln
+- Falls Performance nicht ausreicht, auf async Syntax umsteigen (asyncio, aiosqlite, ...)
 
 ## Wichtiger Sicherheitshinweis
 

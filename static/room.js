@@ -52,6 +52,7 @@ favoriteButtons.forEach((button) => {
     button.addEventListener("click", () => {
         favoriteRooms.has(room) ? favoriteRooms.delete(room) : favoriteRooms.add(room);
         localStorage.setItem(favoriteKey, JSON.stringify([...favoriteRooms]));
+        window.dispatchEvent(new Event("raumradar:favorites-changed"));
         update();
         renderFavorites();
     });

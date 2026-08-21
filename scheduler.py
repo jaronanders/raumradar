@@ -1,0 +1,76 @@
+"""
+sheduler.py
+===========
+Hintergrundprozess für Raumaktualisierungen und Push-Benachrichtigungen
+für bevorzugte Räume.
+"""
+
+import logging
+import os
+import time
+
+import database
+from app import calculate_room_status, get_current_stunde_zeit, get_local_date, notify_free_favorite_rooms
+from untis_client import UntisClient
+
+
+LOGGER = logging.getLogger("raumradar.scheduler")
+POLL_INTERVAL_SECONDS = max(30, int(os.environ.get("SCHEDULER_INTERVAL_SECONDS", "120")))
+
+
+def refresh_subscribed_users():
+    """Refresh each user's timetable and notify newly free favorite rooms."""
+    subscriptions = database.get_all_push_subscriptions()
+    users = {}
+    for subscription in subscriptions:
+        key = (
+            subscription["username"],
+            subscription["untis_school"],
+            subscription["untis_server"],
+            subscription["untis_session"],
+        )
+        users[key] = subscription
+
+    refreshed = 0
+    for (username, school, server, session_id), _subscription in users.items():
+        if not all((school, server, session_id)):
+            LOGGER.info("Überspringe %s: keine aktuelle Untis-Session gespeichert", username)
+            continue
+
+        client = UntisClient(school, server)
+        client.session_id = session_id
+        try:
+            rooms = client.get_rooms()
+            lessons = client.get_full_timetable(day=get_local_date())
+            if not lessons:
+                LOGGER.warning("Keine Stundenplandaten für %s erhalten", username)
+                continue
+            free_rooms, _occupied_rooms, _next_lessons, _total_rooms = calculate_room_status(
+                rooms, lessons, get_current_stunde_zeit()
+            )
+            notify_free_favorite_rooms(username, free_rooms)
+            refreshed += 1
+        except Exception as error:
+            LOGGER.warning("Raum-Refresh für %s fehlgeschlagen: %s", username, error)
+
+    return refreshed
+
+
+def run_scheduler():
+    database.init_db()
+    LOGGER.info("Scheduler gestartet, Intervall: %s Sekunden", POLL_INTERVAL_SECONDS)
+    while True:
+        try:
+            refreshed = refresh_subscribed_users()
+            LOGGER.info("%s Benutzer aktualisiert", refreshed)
+        except Exception:
+            LOGGER.exception("Unerwarteter Fehler im Scheduler-Zyklus")
+        time.sleep(POLL_INTERVAL_SECONDS)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    run_scheduler()

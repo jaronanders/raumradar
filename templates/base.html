@@ -23,6 +23,7 @@
         <nav>
             <a href="{{ url_for('free_rooms') }}">Freie Räume</a>
             <a href="{{ url_for('homework') }}">Hausaufgaben</a>
+            <button id="push-notifications" type="button" hidden>Benachrichtigungen aktivieren</button>
             <a href="{{ url_for('logout') }}">Logout</a>
         </nav>
         {% endif %}
@@ -54,5 +55,8 @@
             window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js'));
         }
     </script>
+    {% if session.get('untis_session') %}
+    <script src="{{ url_for('static', filename='push-notifications.js') }}" defer></script>
+    {% endif %}
 </body>
 </html>
