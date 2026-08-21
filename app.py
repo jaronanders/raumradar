@@ -44,6 +44,9 @@ ALLOWED_ROOM_NAMES = {
     "A11", "B01", "B02", "B03", "B04", "B05", "E01", "E03", "E27", "E29",
     "E31",
 }
+BELEGTE_RAEUME_MITTAGSPAUSE = {
+    #TODO: Hier Räume eintragen, die in der Mittagspause belegt sind
+}
 LOCAL_TIMEZONE = ZoneInfo("Europe/Berlin")
 
 
@@ -229,6 +232,13 @@ def free_rooms():
         end = normalize_time(lesson.get("endTime", 0))
         if start <= current_time <= end:
             occupied_room_names.update(lesson_room_names(lesson, room_names_by_id))
+
+    now = datetime.now(LOCAL_TIMEZONE).time()
+
+    # Mittagspause: bestimmte Räume zusätzlich als belegt markieren
+    if time(12, 10) <= now < time(14, 0):
+        occupied_room_names.update(BELEGTE_RAEUME_MITTAGSPAUSE)
+
     allowed_room_names = {
         normalize_room_name(room_name) for room_name in ALLOWED_ROOM_NAMES
     }
