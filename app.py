@@ -81,6 +81,35 @@ def lesson_rooms(lesson):
     return rooms
 
 
+def room_lookup(rooms):
+    names_by_id = {}
+    names_by_name = {}
+    for room in rooms:
+        if not isinstance(room, dict) or not room.get("name"):
+            continue
+        display_name = room["name"]
+        normalized_name = normalize_room_name(display_name)
+        names_by_name[normalized_name] = display_name
+        if room.get("id") is not None:
+            names_by_id[str(room["id"])] = display_name
+    return names_by_id, names_by_name
+
+
+def lesson_room_names(lesson, names_by_id):
+    names = []
+    for room in lesson_rooms(lesson):
+        if isinstance(room, dict):
+            name = room.get("name") or room.get("longName")
+            if not name and room.get("id") is not None:
+                name = names_by_id.get(str(room["id"]))
+        else:
+            name = room
+        normalized_name = normalize_room_name(name)
+        if normalized_name:
+            names.append(normalized_name)
+    return names
+
+
 @app.route("/")
 def index():
     if "untis_session" not in session:
@@ -181,21 +210,15 @@ def free_rooms():
     if not lessons:
         flash("Untis hat für heute keine Stundenplandaten geliefert. Die Raumbelegung ist deshalb nicht sicher bestimmbar.")
 
+    room_names_by_id, room_display_names = room_lookup(rooms)
+
     # Räume herausfinden, die JETZT laut Stundenplan belegt sind
     occupied_room_names = set()
     for lesson in lessons:
         start = normalize_time(lesson.get("startTime", 0))
         end = normalize_time(lesson.get("endTime", 0))
         if start <= current_time <= end:
-            for room in lesson_rooms(lesson):
-                room_name = room.get("name") if isinstance(room, dict) else room
-                occupied_room_names.add(normalize_room_name(room_name))
-
-    room_display_names = {
-        normalize_room_name(room.get("name")): room.get("name")
-        for room in rooms
-        if room.get("name")
-    }
+            occupied_room_names.update(lesson_room_names(lesson, room_names_by_id))
     allowed_room_names = {
         normalize_room_name(room_name) for room_name in ALLOWED_ROOM_NAMES
     }
@@ -219,9 +242,7 @@ def free_rooms():
         start = normalize_time(lesson.get("startTime", 0))
         if start < current_time:
             continue
-        for room in lesson_rooms(lesson):
-            room_name = room.get("name") if isinstance(room, dict) else room
-            room_name = normalize_room_name(room_name)
+        for room_name in lesson_room_names(lesson, room_names_by_id):
             if room_name not in next_lessons:
                 continue
             display_room_name = room_display_names[room_name]
