@@ -173,7 +173,10 @@ def free_rooms():
         flash(f"Fehler beim Abrufen der Daten: {e}")
         return redirect(url_for("login"))
 
-    current_time = 900
+    current_time = get_current_stunde_zeit()
+
+    if not lessons:
+        flash("Untis hat für heute keine Stundenplandaten geliefert. Die Raumbelegung ist deshalb nicht sicher bestimmbar.")
 
     # Räume herausfinden, die JETZT laut Stundenplan belegt sind
     occupied_room_names = set()
@@ -237,6 +240,7 @@ def free_rooms():
         free_rooms=free_room_names,
         occupied_rooms=occupied_sorted,
         next_lessons=next_lessons,
+        data_available=bool(lessons),
         total_rooms=len(all_room_names),
         current_time=datetime.now(LOCAL_TIMEZONE).strftime("%H:%M"),
     )
