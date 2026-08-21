@@ -173,7 +173,7 @@ def free_rooms():
         flash(f"Fehler beim Abrufen der Daten: {e}")
         return redirect(url_for("login"))
 
-    current_time = get_current_stunde_zeit()
+    current_time = 900
 
     if not lessons:
         flash("Untis hat für heute keine Stundenplandaten geliefert. Die Raumbelegung ist deshalb nicht sicher bestimmbar.")
