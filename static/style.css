@@ -288,6 +288,13 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
 .favorite-empty,
 .loading-message { color: #666; font-size: 0.9rem; }
 .loading-message { font-weight: bold; }
+.data-warning {
+    padding: 0.7rem 0.9rem;
+    color: #7a4a00;
+    background: rgba(255, 244, 204, 0.78);
+    border: 1px solid #e8c96a;
+    border-radius: 10px;
+}
 .refresh-row {
     display: flex;
     align-items: center;
