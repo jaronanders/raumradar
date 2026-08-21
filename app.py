@@ -54,6 +54,30 @@ def get_local_date():
     return datetime.now(LOCAL_TIMEZONE).date()
 
 
+def normalize_room_name(value):
+    if value is None:
+        return ""
+    return str(value).strip().upper()
+
+
+def normalize_time(value):
+    if isinstance(value, int):
+        return value
+    digits = "".join(character for character in str(value) if character.isdigit())
+    if not digits:
+        return 0
+    if len(digits) <= 2:
+        return int(digits) * 100
+    return int(digits[-4:])
+
+
+def lesson_rooms(lesson):
+    rooms = lesson.get("ro") or lesson.get("rooms") or []
+    if isinstance(rooms, dict):
+        rooms = [rooms]
+    return rooms
+
+
 @app.route("/")
 def index():
     if "untis_session" not in session:
@@ -154,31 +178,53 @@ def free_rooms():
     # Räume herausfinden, die JETZT laut Stundenplan belegt sind
     occupied_room_names = set()
     for lesson in lessons:
-        start = lesson.get("startTime", 0)
-        end = lesson.get("endTime", 0)
+        start = normalize_time(lesson.get("startTime", 0))
+        end = normalize_time(lesson.get("endTime", 0))
         if start <= current_time <= end:
-            for room in lesson.get("ro", []):
-                occupied_room_names.add(room.get("name"))
+            for room in lesson_rooms(lesson):
+                room_name = room.get("name") if isinstance(room, dict) else room
+                occupied_room_names.add(normalize_room_name(room_name))
 
-    all_room_names = {r.get("name") for r in rooms} & ALLOWED_ROOM_NAMES
-    free_room_names = sorted(all_room_names - occupied_room_names)
-    occupied_sorted = sorted(occupied_room_names & ALLOWED_ROOM_NAMES)
+    room_display_names = {
+        normalize_room_name(room.get("name")): room.get("name")
+        for room in rooms
+        if room.get("name")
+    }
+    allowed_room_names = {
+        normalize_room_name(room_name) for room_name in ALLOWED_ROOM_NAMES
+    }
+    all_room_names = set(room_display_names) & allowed_room_names
+    free_room_names = sorted(
+        (all_room_names - occupied_room_names),
+        key=lambda room_name: room_display_names[room_name],
+    )
+    occupied_sorted = sorted(
+        (occupied_room_names & all_room_names),
+        key=lambda room_name: room_display_names[room_name],
+    )
+    free_room_names = [room_display_names[name] for name in free_room_names]
+    occupied_sorted = [room_display_names[name] for name in occupied_sorted]
 
-    next_lessons = {room_name: None for room_name in all_room_names}
+    next_lessons = {
+        room_display_names[room_name]: None
+        for room_name in all_room_names
+    }
     for lesson in lessons:
-        start = lesson.get("startTime", 0)
+        start = normalize_time(lesson.get("startTime", 0))
         if start < current_time:
             continue
-        for room in lesson.get("ro", []):
-            room_name = room.get("name")
+        for room in lesson_rooms(lesson):
+            room_name = room.get("name") if isinstance(room, dict) else room
+            room_name = normalize_room_name(room_name)
             if room_name not in next_lessons:
                 continue
-            current_next = next_lessons[room_name]
+            display_room_name = room_display_names[room_name]
+            current_next = next_lessons[display_room_name]
             if current_next is None or start < current_next["start_time"]:
-                next_lessons[room_name] = {
+                next_lessons[display_room_name] = {
                     "start_time": start,
                     "start": f"{start // 100:02d}:{start % 100:02d}",
-                    "end": f"{lesson.get('endTime', 0) // 100:02d}:{lesson.get('endTime', 0) % 100:02d}",
+                    "end": f"{normalize_time(lesson.get('endTime', 0)) // 100:02d}:{normalize_time(lesson.get('endTime', 0)) % 100:02d}",
                     "subject": ", ".join(
                         subject.get("name", "")
                         for subject in lesson.get("su", [])
