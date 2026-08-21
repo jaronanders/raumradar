@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<article class="legal-page">
+    <h2>Datenschutzerklärung</h2>
+
+    <section>
+        <h3>1. Verantwortlicher</h3>
+        <p>
+            Verantwortlich für die Verarbeitung personenbezogener Daten im Rahmen dieser Anwendung ist die betreibende Person. Weitere Informationen zur verantwortlichen Person finden Sie im <a href="{{ url_for('legal_notice') }}">Impressum</a>.
+        </p>
+    </section>
+
+    <section>
+        <h3>2. Erhobene Daten</h3>
+        <p>
+            Bei der Nutzung der Anwendung werden grundsätzlich die folgenden Daten verarbeitet:
+        </p>
+        <ul>
+            <li>Schul- oder Anmeldedaten für den Login gegenüber der Unterrichtssoftware</li>
+            <li>Session- und Logininformationen, die für die Nutzung der Anwendung erforderlich sind</li>
+            <li>Hausaufgaben- und Notizdaten, sofern der Nutzer diese in der Anwendung eingibt</li>
+        </ul>
+    </section>
+
+    <section>
+        <h3>3. Zweck der Verarbeitung</h3>
+        <p>
+            Die Daten werden ausschließlich zur Bereitstellung und Nutzung der Raumübersicht sowie der Hausaufgabenverwaltung verwendet. Dabei dienen sie insbesondere der Authentifizierung, der Anzeige der freien Räume und der Speicherung persönlicher Notizen des Nutzers.
+        </p>
+    </section>
+
+    <section>
+        <h3>4. Speicherdauer</h3>
+        <p>
+            Die Daten werden nur so lange gespeichert, wie für den angegebenen Zweck erforderlich oder durch gesetzliche Vorgaben vorgeschrieben. Sessiondaten werden nach Abmeldung bzw. Ablauf der Sitzung automatisch verworfen.
+        </p>
+    </section>
+
+    <section>
+        <h3>5. Weitergabe an Dritte</h3>
+        <p>
+            Eine Weitergabe der erhobenen Daten an Dritte erfolgt nur, wenn dies für den Betrieb der Anwendung, für rechtliche Verpflichtungen oder aus Sicherheitsgründen erforderlich ist. Die Anwendung greift auf Schul- oder Verwaltungsdaten der Unterrichtssoftware zu; eine darüber hinausgehende unberechtigte Weitergabe findet nicht statt.
+        </p>
+    </section>
+
+    <section>
+        <h3>6. Betroffenenrechte</h3>
+        <p>
+            Sie haben das Recht, Auskunft über die zu Ihrer Person gespeicherten Daten zu verlangen, diese zu berichtigen, zu löschen oder die Verarbeitung einzuschränken. Bitte wenden Sie sich hierzu an die zuständige Schule oder Einrichtung.
+        </p>
+    </section>
+
+    <section>
+        <h3>7. Kontakt</h3>
+        <p>
+            Bei Fragen zum Datenschutz oder zur Verarbeitung personenbezogener Daten wenden Sie sich bitte an den Datenschutzbeauftragten oder die zuständige Stelle Ihrer Schule bzw. Einrichtung.
+        </p>
+    </section>
+</article>
+{% endblock %}

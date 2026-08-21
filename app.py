@@ -10,7 +10,7 @@ Dann im Browser öffnen:
     http://127.0.0.1:5000
 """
 
-from datetime import datetime, date
+from datetime import datetime, time as uhrzeit
 import os
 import secrets
 import time
@@ -170,6 +170,16 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/legal-notice")
+def legal_notice():
+    return render_template("legal_notice.html")
+
+
+@app.route("/privacy-policy")
+def privacy_policy():
+    return render_template("privacy_policy.html")
+
+
 def get_client_from_session():
     """Baut aus der Browser-Session einen UntisClient ohne Passwort auf."""
     client = UntisClient(session["untis_school"], session["untis_server"])
@@ -236,7 +246,7 @@ def free_rooms():
     now = datetime.now(LOCAL_TIMEZONE).time()
 
     # Mittagspause: bestimmte Räume zusätzlich als belegt markieren
-    if time(12, 10) <= now < time(14, 0):
+    if uhrzeit(12, 10) <= now < uhrzeit(13, 0):
         occupied_room_names.update(BELEGTE_RAEUME_MITTAGSPAUSE)
 
     allowed_room_names = {
