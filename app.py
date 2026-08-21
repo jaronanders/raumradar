@@ -14,6 +14,7 @@ from datetime import datetime, date
 import os
 import secrets
 import time
+from threading import Lock
 from zoneinfo import ZoneInfo
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_session import Session
@@ -32,6 +33,7 @@ database.init_db()
 
 ROOM_DATA_CACHE = {}
 ROOM_DATA_CACHE_SECONDS = 30
+ROOM_DATA_CACHE_LOCK = Lock()
 ALLOWED_ROOM_NAMES = {
     "101", "102", "103", "104", "105", "106", "107", "108", "114", "115",
     "120", "121", "125", "126", "127", "128", "129", "130", "131", "136",
@@ -175,21 +177,21 @@ def get_room_data(client):
     cache_key = (
         session["untis_school"],
         session["untis_server"],
-        session["untis_username"],
         get_local_date(),
     )
-    cached = ROOM_DATA_CACHE.get(cache_key)
-    if cached and time.monotonic() - cached["created"] < ROOM_DATA_CACHE_SECONDS:
-        return cached["rooms"], cached["lessons"]
+    with ROOM_DATA_CACHE_LOCK:
+        cached = ROOM_DATA_CACHE.get(cache_key)
+        if cached and time.monotonic() - cached["created"] < ROOM_DATA_CACHE_SECONDS:
+            return cached["rooms"], cached["lessons"]
 
-    rooms = client.get_rooms()
-    lessons = client.get_full_timetable(day=get_local_date())
-    ROOM_DATA_CACHE[cache_key] = {
-        "created": time.monotonic(),
-        "rooms": rooms,
-        "lessons": lessons,
-    }
-    return rooms, lessons
+        rooms = client.get_rooms()
+        lessons = client.get_full_timetable(day=get_local_date())
+        ROOM_DATA_CACHE[cache_key] = {
+            "created": time.monotonic(),
+            "rooms": rooms,
+            "lessons": lessons,
+        }
+        return rooms, lessons
 
 
 @app.route("/free-rooms")
