@@ -57,7 +57,13 @@
 
     function renderFavorites() {
         favoriteContainer.replaceChildren();
-        const availableRooms = [...document.querySelectorAll('.room-button')].map((button) => button.dataset.room);
+        const roomStatus = new Map(
+            [...document.querySelectorAll('.room-button')].map((button) => [
+                button.dataset.room,
+                button.classList.contains('occupied') ? 'Belegt' : 'Frei'
+            ])
+        );
+        const availableRooms = [...roomStatus.keys()];
         const favorites = [...favoriteRooms].filter((room) => availableRooms.includes(room));
         if (!favorites.length) {
             const empty = document.createElement('p');
@@ -68,9 +74,10 @@
         }
         favorites.forEach((room) => {
             const shortcut = document.createElement('button');
-            shortcut.className = 'favorite-chip';
+            const status = roomStatus.get(room);
+            shortcut.className = `favorite-chip ${status === 'Belegt' ? 'favorite-occupied' : 'favorite-free'}`;
             shortcut.type = 'button';
-            shortcut.textContent = `★ ${room}`;
+            shortcut.innerHTML = `<strong>★ ${room}</strong><small>${status}</small>`;
             shortcut.addEventListener('click', () => document.querySelector(`.room-button[data-room="${room}"]`).click());
             favoriteContainer.append(shortcut);
         });
