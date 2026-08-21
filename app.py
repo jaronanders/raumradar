@@ -32,8 +32,9 @@ Session(app)
 database.init_db()
 
 ROOM_DATA_CACHE = {}
-ROOM_DATA_CACHE_SECONDS = 30
+ROOM_DATA_CACHE_SECONDS = 120
 ROOM_DATA_CACHE_LOCK = Lock()
+ROOM_DATA_REFRESH_LOCK = Lock()
 ALLOWED_ROOM_NAMES = {
     "101", "102", "103", "104", "105", "106", "107", "108", "114", "115",
     "120", "121", "125", "126", "127", "128", "129", "130", "131", "136",
@@ -184,13 +185,20 @@ def get_room_data(client):
         if cached and time.monotonic() - cached["created"] < ROOM_DATA_CACHE_SECONDS:
             return cached["rooms"], cached["lessons"]
 
+    with ROOM_DATA_REFRESH_LOCK:
+        with ROOM_DATA_CACHE_LOCK:
+            cached = ROOM_DATA_CACHE.get(cache_key)
+            if cached and time.monotonic() - cached["created"] < ROOM_DATA_CACHE_SECONDS:
+                return cached["rooms"], cached["lessons"]
+
         rooms = client.get_rooms()
         lessons = client.get_full_timetable(day=get_local_date())
-        ROOM_DATA_CACHE[cache_key] = {
-            "created": time.monotonic(),
-            "rooms": rooms,
-            "lessons": lessons,
-        }
+        with ROOM_DATA_CACHE_LOCK:
+            ROOM_DATA_CACHE[cache_key] = {
+                "created": time.monotonic(),
+                "rooms": rooms,
+                "lessons": lessons,
+            }
         return rooms, lessons
 
 

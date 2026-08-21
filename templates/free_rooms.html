@@ -43,78 +43,8 @@
 
 <div class="refresh-row">
     <a class="refresh-button" href="{{ url_for('free_rooms') }}">↻ <span>Aktualisieren</span></a>
-    <span>Automatisch alle 30 Sekunden</span>
+    <span>Automatisch alle 2 Minuten</span>
 </div>
-<script>
-    const nextLessons = {{ next_lessons|tojson }};
-    const favoriteKey = 'raumradar-favorite-rooms';
-    const favoriteRooms = new Set(JSON.parse(localStorage.getItem(favoriteKey) || '[]'));
-    const details = document.getElementById('room-details');
-    const title = document.getElementById('room-details-title');
-    const text = document.getElementById('room-details-text');
-    const favoriteContainer = document.getElementById('favorite-rooms');
-    const loadingMessage = document.getElementById('loading-message');
-
-    function renderFavorites() {
-        favoriteContainer.replaceChildren();
-        const roomStatus = new Map(
-            [...document.querySelectorAll('.room-button')].map((button) => [
-                button.dataset.room,
-                button.classList.contains('occupied') ? 'Belegt' : 'Frei'
-            ])
-        );
-        const availableRooms = [...roomStatus.keys()];
-        const favorites = [...favoriteRooms].filter((room) => availableRooms.includes(room));
-        if (!favorites.length) {
-            const empty = document.createElement('p');
-            empty.className = 'favorite-empty';
-            empty.textContent = 'Noch keine Favoriten markiert.';
-            favoriteContainer.append(empty);
-            return;
-        }
-        favorites.forEach((room) => {
-            const shortcut = document.createElement('button');
-            const status = roomStatus.get(room);
-            shortcut.className = `favorite-chip ${status === 'Belegt' ? 'favorite-occupied' : 'favorite-free'}`;
-            shortcut.type = 'button';
-            shortcut.innerHTML = `<strong>★ ${room}</strong><small>${status}</small>`;
-            shortcut.addEventListener('click', () => document.querySelector(`.room-button[data-room="${room}"]`).click());
-            favoriteContainer.append(shortcut);
-        });
-    }
-
-    document.querySelectorAll('.favorite-button').forEach((button) => {
-        const room = button.dataset.room;
-        const update = () => {
-            const isFavorite = favoriteRooms.has(room);
-            button.textContent = isFavorite ? '★' : '☆';
-            button.classList.toggle('is-favorite', isFavorite);
-            button.setAttribute('aria-label', isFavorite ? `Raum ${room} aus Favoriten entfernen` : `Raum ${room} favorisieren`);
-        };
-        update();
-        button.addEventListener('click', () => {
-            favoriteRooms.has(room) ? favoriteRooms.delete(room) : favoriteRooms.add(room);
-            localStorage.setItem(favoriteKey, JSON.stringify([...favoriteRooms]));
-            update();
-            renderFavorites();
-        });
-    });
-
-    document.querySelectorAll('.room-button').forEach((button) => {
-        button.addEventListener('click', () => {
-            const room = button.dataset.room;
-            const lesson = nextLessons[room];
-            title.textContent = `Raum ${room}`;
-            text.textContent = lesson
-                ? `Nächster Unterricht: ${lesson.start}-${lesson.end} Uhr (${lesson.subject})`
-                : 'Heute findet hier kein weiterer Unterricht statt.';
-            details.hidden = false;
-            details.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        });
-    });
-
-    renderFavorites();
-    window.setTimeout(() => window.location.reload(), 30000);
-    window.addEventListener('beforeunload', () => { loadingMessage.hidden = false; });
-</script>
+<script id="next-lessons" type="application/json">{{ next_lessons|tojson }}</script>
+<script src="{{ url_for('static', filename='room.js') }}" defer></script>
 {% endblock %}
