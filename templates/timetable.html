@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Stundenplan</h2>
-<p>Heute, {{ timetable_date }}</p>
+<p>{{ timetable_date }}</p>
 
-<section class="timetable-week" aria-label="Stundenplan für heute">
+<section class="timetable-week" aria-label="Stundenplan für mehrere Tage">
+	{% for day in timetable_days %}
 	<div class="timetable-day">
-		<h3>Unterricht <small>{{ timetable_date }}</small></h3>
-		{% for lesson in lessons %}
+		<h3>{% if day.is_today %}Heute{% else %}{{ day.date }}{% endif %}</h3>
+		{% for lesson in day.lessons %}
 			<article class="timetable-card{% if lesson.status == 'vorbei' %} is-past{% elif lesson.status == 'läuft gerade' %} is-current{% endif %}">
 				<strong class="timetable-card-subject">{{ lesson.subject }}</strong>
 				<span class="timetable-card-time">{{ lesson.start }}–{{ lesson.end }} Uhr</span>
@@ -16,8 +17,9 @@
 				{% if lesson.status %}<span class="timetable-status {{ lesson.status|replace(' ', '-') }}">{{ lesson.status }}</span>{% endif %}
 			</article>
 		{% else %}
-			<p class="timetable-empty">Für heute wurden keine Unterrichtsstunden gefunden.</p>
+			<p class="timetable-empty">Keine Unterrichtsstunden</p>
 		{% endfor %}
 	</div>
+	{% endfor %}
 </section>
 {% endblock %}

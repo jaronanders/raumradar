@@ -23,6 +23,8 @@ class UntisClient:
         self.base_url = f"https://{server}/WebUntis/jsonrpc.do?school={school}"
         self.session = requests.Session()
         self.session_id = None
+        self.person_id = None
+        self.person_type = 5
 
     def _rpc(self, method, params):
         payload = {"id": "req", "method": method, "params": params, "jsonrpc": "2.0"}
@@ -41,6 +43,8 @@ class UntisClient:
             "client": "RaumRadar",
         })
         self.session_id = result["sessionId"]
+        self.person_id = result.get("personId")
+        self.person_type = result.get("personType", 5)
         return result
 
     def logout(self):
@@ -61,6 +65,51 @@ class UntisClient:
         if isinstance(result, dict):
             return result.get("data") or result.get("klassen") or result.get("classes") or []
         return result
+
+    def get_timetable_for_student(self, student_id, days: list = None):
+        """Stundenplan eines einzelnen Schülers für einen Tag (default: heute)."""
+        if not days:
+            start = end = int(date.today().strftime("%Y%m%d"))
+        else:
+            start = int(days[0].strftime("%Y%m%d"))
+            end = int(days[-1].strftime("%Y%m%d"))
+        result = self._rpc("getTimetable", {
+            "id": student_id,
+            "type": 5,  # 5 = Schüler
+            "startDate": start,
+            "endDate": end,
+        })
+        if isinstance(result, dict):
+            return result.get("data") or result.get("timetable") or result.get("lessons") or []
+        return result
+
+
+    def get_lesson_details(self, lesson):
+        """Holt Detaildaten zu einer Stundenplanperiode."""
+        if not isinstance(lesson, dict) or lesson.get("id") is None:
+            return {}
+
+        response = self.session.get(
+            f"https://{self.server}/WebUntis/api/public/period/info",
+            params={
+                "school": self.school,
+                "date": lesson.get("date"),
+                "starttime": lesson.get("startTime"),
+                "endtime": lesson.get("endTime"),
+                "elemid": self.person_id,
+                "elemtype": self.person_type,
+                "ttFmtId": 1,
+                "selectedPeriodId": lesson["id"],
+            },
+            cookies={"JSESSIONID": self.session_id} if self.session_id else {},
+            timeout=15,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if "error" in data:
+            raise UntisError(data["error"].get("message", str(data["error"])))
+        return data.get("data", data)
+
 
     def get_timetable_for_klasse(self, klasse_id, day=None):
         """Stundenplan einer einzelnen Klasse für einen Tag (default: heute)."""

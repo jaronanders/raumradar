@@ -40,15 +40,28 @@ header {
 }
 
 .brand {
-    grid-column: 2;
     display: inline-flex;
     align-items: center;
     gap: 0.65rem;
     color: var(--navy);
     text-decoration: none;
 }
+.notification-control {
+    grid-column: 1;
+    justify-self: start;
+    display: flex;
+    align-items: center;
+}
+.brand { grid-column: 2; }
 header h1 { margin: 0; font-size: 1.55rem; letter-spacing: -0.03em; }
-header nav { grid-column: 3; justify-self: end; }
+header nav {
+    grid-column: 3;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
 .brand-radar {
     width: 48px !important;
     height: 48px !important;
@@ -70,7 +83,7 @@ header nav { grid-column: 3; justify-self: end; }
 nav a {
     color: var(--navy-light);
     text-decoration: none;
-    margin-left: 1.2rem;
+    margin-left: 0;
     opacity: 1;
     padding: 0.45rem 0.7rem;
     border-radius: 999px;
@@ -465,7 +478,8 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     font-weight: bold;
 }
 .timetable-status.vorbei { color: #888; }
-.timetable-status.läuft-gerade { color: var(--coral); }
+.timetable-status.läuft-gerade { color: var(--blue-glow); }
+.timetable-status.ausgefallen {color: var(--coral)}
 .timetable-empty { color: #666; font-size: 0.85rem; }
 
 .homework-list { list-style: none; padding: 0; }
@@ -498,7 +512,8 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     header h1 { font-size: 1.15rem; }
     nav a { padding: 0.35rem 0.5rem; font-size: 0.8rem; }
     .room-grid { gap: 0.45rem; margin-bottom: 1.4rem; }
-    .room-chip { padding: 0.58rem 0.78rem; font-size: 0.84rem; }
+    .room-chip { padding: 0.58rem 0.78rem; font-size: 0.84rem; box-shadow: none;}
+    .room-chip.free { box-shadow: none; backdrop-filter: none;}
     .favorite-section { margin: 1rem 0 1.5rem; padding: 0.65rem 0.75rem 0.9rem; border-radius: 20px; }
     .favorite-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; }
     .favorite-chip { padding: 0.5rem 0.35rem; font-size: 0.82rem; }
@@ -508,4 +523,3 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     .login-loading-card { width: min(100%, 320px); padding: 1.7rem 1.2rem; border-radius: 24px; }
     .radar { width: 118px; height: 118px; }
 }
-

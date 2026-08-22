@@ -57,6 +57,7 @@ VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_CLAIMS = {"sub": os.environ.get("VAPID_SUBJECT", "mailto:admin@example.com")}
 
+WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 
 def get_current_stunde_zeit():
     """Grobe Hilfsfunktion: aktuelle Uhrzeit als HHMM-Zahl (Untis-Format)."""
@@ -108,6 +109,23 @@ def normalize_time(value):
     if len(digits) <= 2:
         return int(digits) * 100
     return int(digits[-4:])
+
+
+def normalize_timetable_date(value):
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+
+    value = str(value or "").strip()
+    if len(value) == 8 and value.isdigit():
+        return datetime.strptime(value, "%Y%m%d").date().isoformat()
+    for date_format in ("%d.%m.%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(value[:10], date_format).date().isoformat()
+        except ValueError:
+            continue
+    return None
 
 
 def lesson_rooms(lesson):
@@ -183,6 +201,7 @@ def login():
         session["untis_server"] = server
         session["untis_username"] = username
         session["untis_session"] = client.session_id
+        session["untis_person_id"] = client.person_id
 
         flash("Erfolgreich eingeloggt!")
         return redirect(url_for("free_rooms"))
@@ -356,8 +375,8 @@ def notify_homework(homework):
     subject = homework["subject"]
     content = homework["content"]
 
-    time_left = datetime.fromisoformat(homework["due_date"]) - datetime.now()
-    due_in = f"in einem Tag" if time_left.days <= 1 else f"in {time_left.days} Tagen"
+    time_left = date.fromisoformat(homework["due_date"]) - date.today()
+    due_in = f"morgen" if time_left.days <= 1 else f"in {time_left.days} Tagen"
 
     database.delete_reminder(homework["id"], username)
 
@@ -382,6 +401,7 @@ def get_client_from_session():
     """Baut aus der Browser-Session einen UntisClient ohne Passwort auf."""
     client = UntisClient(session["untis_school"], session["untis_server"])
     client.session_id = session["untis_session"]
+    client.person_id = session.get("untis_person_id")
     return client
 
 
@@ -556,7 +576,78 @@ def homework():
     )
 
 
+@app.route("/timetable")
+def timetable():
+    if "untis_session" not in session:
+        return redirect(url_for("login"))
 
+    today = get_local_date()
+    try:
+        client = get_client_from_session()
+        lessons = client.get_timetable_for_student(client.person_id, days=[today, today + timedelta(days=4)])
+    except UntisError as error:
+        session.clear()
+        flash(f"Fehler beim Abrufen der Daten: {error}")
+        return redirect(url_for("login"))
+
+    current_time = get_current_stunde_zeit()
+    timetable_days = {
+        (today + timedelta(days=offset)).isoformat(): []
+        for offset in range(5)
+    }
+    for lesson in lessons or []:
+        if not isinstance(lesson, dict):
+            continue
+        lesson_date = normalize_timetable_date(lesson.get("date"))
+        if lesson_date is None:
+            lesson_date = today.isoformat()
+        start_time = normalize_time(lesson.get("startTime", 0))
+        end_time = normalize_time(lesson.get("endTime", 0))
+
+        element = client.get_lesson_details(lesson)
+        details = element["blocks"][0][0]
+        print(details)
+        TODO: testen ob isCancelled funktioniert (über print)
+        period = details["periods"][0]
+        subject = details.get("subjectNameLong")
+        rooms = period.get("rooms")
+        teachers = [teacher["name"] for teacher in period.get("teachers")]
+
+        timetable_days.setdefault(lesson_date, []).append({
+            "date": lesson_date,
+            "subject": subject or "Unterricht",
+            "start": f"{start_time // 100:02d}:{start_time % 100:02d}",
+            "end": f"{end_time // 100:02d}:{end_time % 100:02d}",
+            "room": ", ".join(
+                room.get("name") if isinstance(room, dict) else str(room)
+                for room in rooms
+            ),
+            "class_name": lesson.get("_klasse_name") or "",
+            "teacher": ", ".join(teachers),
+            "status": (
+                "ausgefallen" if details["isCancelled"]
+                else "läuft gerade" if start_time <= current_time < end_time
+                else "vorbei" if end_time <= current_time
+                else ""
+            ) if lesson_date == today.isoformat() else "",
+        })
+
+    for day_lessons in timetable_days.values():
+        day_lessons.sort(key=lambda lesson: (lesson["start"], lesson["subject"]))
+
+    timetable_days = [
+        {
+            "date": WEEKDAYS[date.fromisoformat(day).weekday()],
+            "is_today": day == today.isoformat(),
+            "lessons": day_lessons,
+        }
+        for day, day_lessons in sorted(timetable_days.items())
+    ]
+    return render_template(
+        "timetable.html",
+        timetable_days=timetable_days,
+        timetable_date=f"{WEEKDAYS[today.weekday()]}, " + today.strftime("%d.%m.%Y"),
+    )
 
 
 @app.route("/homework/<int:homework_id>/toggle", methods=["POST"])
