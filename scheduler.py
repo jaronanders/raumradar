@@ -10,12 +10,13 @@ import os
 import time
 
 import database
-from app import calculate_room_status, get_current_stunde_zeit, get_local_date, notify_free_favorite_rooms
+from app import calculate_room_status, get_current_stunde_zeit, get_local_date, notify_free_favorite_rooms, notify_homework
 from untis_client import UntisClient
 
 
 LOGGER = logging.getLogger("raumradar.scheduler")
 POLL_INTERVAL_SECONDS = max(30, int(os.environ.get("SCHEDULER_INTERVAL_SECONDS", "120")))
+REMINDER_INTERVAL_SECONDS = max(30, int(os.environ.get("REMINDER_INTERVAL_SECONDS", "60")))
 
 
 def refresh_subscribed_users():
@@ -56,6 +57,13 @@ def refresh_subscribed_users():
     return refreshed
 
 
+def send_homework_reminders():
+    homeworks = database.get_all_homework_reminders()
+
+    for homework in homeworks:
+        notify_homework(homework)
+
+
 def run_scheduler():
     database.init_db()
     LOGGER.info("Scheduler gestartet, Intervall: %s Sekunden", POLL_INTERVAL_SECONDS)
@@ -65,7 +73,12 @@ def run_scheduler():
             LOGGER.info("%s Benutzer aktualisiert", refreshed)
         except Exception:
             LOGGER.exception("Unerwarteter Fehler im Scheduler-Zyklus")
-        time.sleep(POLL_INTERVAL_SECONDS)
+
+        for i in range(POLL_INTERVAL_SECONDS // REMINDER_INTERVAL_SECONDS):
+            # Hausaufgaben-Erinnerungen
+            send_homework_reminders()
+
+            time.sleep(REMINDER_INTERVAL_SECONDS)
 
 
 if __name__ == "__main__":

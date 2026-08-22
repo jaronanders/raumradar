@@ -2,7 +2,7 @@
 {% block content %}
 <h2>Hausaufgaben & Notizen</h2>
 
-<form method="POST" class="homework-form">
+<form method="POST" class="homework-form" id="homework-form">
     <label>Fach
         <input type="text" name="subject" placeholder="z.B. Mathe" required>
     </label>
@@ -10,16 +10,41 @@
         <input type="text" name="content" placeholder="z.B. Seite 42, Aufgabe 3-5" required>
     </label>
     <label>Frist (optional)
-        <input type="date" name="due_date">
+        <input type="date" name="due_date" min="{{ minimum_due_date }}" max="{{ maximum_due_date }}">
+    </label>
+    <label>Erinnerung (Benachrichtigungen müssen aktiviert sein)
+        <input type="datetime-local" name="reminder" min="{{ minimum_reminder }}" max="{{ maximum_reminder }}" disabled>
     </label>
     <button type="submit">Hinzufügen</button>
 </form>
+
+<script>
+    const homeworkForm = document.getElementById('homework-form');
+    const dueDateInput = homeworkForm.querySelector('[name="due_date"]');
+    const reminderInput = homeworkForm.querySelector('[name="reminder"]');
+
+    function updateReminderAvailability() {
+        reminderInput.disabled = !dueDateInput.value;
+        if (dueDateInput.value) {
+            const dayBeforeDueDate = new Date(`${dueDateInput.value}T00:00`);
+            dayBeforeDueDate.setDate(dayBeforeDueDate.getDate() - 1);
+            reminderInput.max = `${dayBeforeDueDate.getFullYear()}-${String(dayBeforeDueDate.getMonth() + 1).padStart(2, '0')}-${String(dayBeforeDueDate.getDate()).padStart(2, '0')}T23:59`;
+        } else {
+            reminderInput.max = '{{ maximum_reminder }}';
+        }
+        if (reminderInput.disabled) reminderInput.value = '';
+    }
+
+    dueDateInput.addEventListener('input', updateReminderAvailability);
+    updateReminderAvailability();
+</script>
 
 <ul class="homework-list">
     {% for item in items %}
     <li class="{{ 'done' if item.done else '' }}">
         <strong>{{ item.subject }}</strong> — {{ item.content }}
-        {% if item.due_date %}<span class="due">Fällig: {{ item.due_date }}</span>{% endif %}
+        {% if item.due_date %}<span class="due">Fällig: {{ item.due_date|format_homework_date }}</span>{% endif %}
+        {% if item.reminder %}<span class="due">Erinnerung: {{ item.reminder|format_homework_date(true) }}</span>{% endif %}
 
         <form method="POST" action="{{ url_for('toggle_homework', homework_id=item.id) }}" style="display:inline">
             <button type="submit">{{ 'Wieder öffnen' if item.done else 'Erledigt' }}</button>

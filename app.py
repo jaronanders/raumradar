@@ -10,7 +10,9 @@ Dann im Browser öffnen:
     http://127.0.0.1:5000
 """
 
-from datetime import datetime, time as uhrzeit
+from config import LOCAL_TIMEZONE
+from calendar import monthrange
+from datetime import datetime, date, time as uhrzeit, timedelta
 import atexit
 import json
 import os
@@ -19,7 +21,6 @@ import subprocess
 import sys
 import time
 from threading import Lock
-from zoneinfo import ZoneInfo
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
 from flask_session import Session
 from pywebpush import WebPushException, webpush
@@ -52,7 +53,6 @@ ALLOWED_ROOM_NAMES = {
 BELEGTE_RAEUME_MITTAGSPAUSE = {
     #TODO: Hier Räume eintragen, die in der Mittagspause belegt sind
 }
-LOCAL_TIMEZONE = ZoneInfo("Europe/Berlin")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_CLAIMS = {"sub": os.environ.get("VAPID_SUBJECT", "mailto:admin@example.com")}
@@ -69,6 +69,28 @@ def get_current_stunde_zeit():
 
 def get_local_date():
     return datetime.now(LOCAL_TIMEZONE).date()
+
+
+def add_one_month(value):
+    month = value.month % 12 + 1
+    year = value.year + (value.month == 12)
+    return value.replace(year=year, month=month, day=min(value.day, monthrange(year, month)[1]))
+
+
+def homework_date_limits():
+    now = datetime.now(LOCAL_TIMEZONE)
+    return now, now.date(), add_one_month(now.date()), now + timedelta(minutes=1)
+
+
+@app.template_filter("format_homework_date")
+def format_homework_date(value, include_time=False):
+    if not value:
+        return value
+    try:
+        parsed_value = datetime.fromisoformat(value) if include_time else date.fromisoformat(value)
+    except (TypeError, ValueError):
+        return value
+    return parsed_value.strftime("%d.%m.%y %H:%M Uhr" if include_time else "%d.%m.%y")
 
 
 def normalize_room_name(value):
@@ -329,6 +351,33 @@ def notify_free_favorite_rooms(username, free_room_names):
         database.update_push_subscription_notification_state(subscription["endpoint"], free_rooms)
 
 
+def notify_homework(homework):
+    username = homework["username"]
+    subject = homework["subject"]
+    content = homework["content"]
+
+    time_left = datetime.fromisoformat(homework["due_date"]) - datetime.now()
+    due_in = f"in einem Tag" if time_left.days <= 1 else f"in {time_left.days} Tagen"
+
+    database.delete_reminder(homework["id"], username)
+
+
+    for subscription in database.get_push_subscriptions(username):
+        try:
+            send_push_to_subscription(
+                subscription,
+                f"Deine Hausaufgabe für {subject} ist {due_in} fällig",
+                content,
+                "/homework",
+            )
+        except WebPushException as error:
+            status_code = getattr(getattr(error, "response", None), "status_code", None)
+            if status_code in (401, 403, 404, 410):
+                database.delete_push_subscription(username, subscription["endpoint"])
+            else:
+                app.logger.warning("Push-Versand fehlgeschlagen: %s", error)
+
+
 def get_client_from_session():
     """Baut aus der Browser-Session einen UntisClient ohne Passwort auf."""
     client = UntisClient(session["untis_school"], session["untis_server"])
@@ -462,13 +511,52 @@ def homework():
     if request.method == "POST":
         subject = request.form["subject"]
         content = request.form["content"]
-        due_date = request.form.get("due_date") or None
-        database.add_homework(username, subject, content, due_date)
+        due_date_input = request.form.get("due_date") or None
+        reminder_input = request.form.get("reminder") or None
+        now, minimum_due_date, maximum_due_date, minimum_reminder = homework_date_limits()
+
+        try:
+            due_date_value = date.fromisoformat(due_date_input) if due_date_input else None
+            reminder_value = (
+                datetime.fromisoformat(reminder_input).replace(tzinfo=LOCAL_TIMEZONE)
+                if reminder_input else None
+            )
+        except ValueError:
+            flash("Ungültiges Datum oder ungültige Erinnerung.")
+            return redirect(url_for("homework"))
+
+        if due_date_value and not minimum_due_date <= due_date_value <= maximum_due_date:
+            flash("Die Frist muss heute oder innerhalb des nächsten Monats liegen.")
+            return redirect(url_for("homework"))
+        if reminder_value and not due_date_value:
+            flash("Eine Erinnerung ist nur mit einer Frist möglich.")
+            return redirect(url_for("homework"))
+        if reminder_value:
+            due_date_end = datetime.combine(due_date_value, uhrzeit.max, tzinfo=LOCAL_TIMEZONE)
+            maximum_reminder = datetime.combine(maximum_due_date, uhrzeit.max, tzinfo=LOCAL_TIMEZONE)
+            if not minimum_reminder <= reminder_value <= maximum_reminder or reminder_value > due_date_end:
+                flash("Die Erinnerung muss mindestens 1 Minute vorausliegen und vor der Frist liegen.")
+                return redirect(url_for("homework"))
+
+        due_date = due_date_value.isoformat() if due_date_value else None
+        reminder = reminder_value.isoformat() if reminder_value else None
+        database.add_homework(username, subject, content, due_date, reminder)
         flash("Hausaufgabe hinzugefügt!")
         return redirect(url_for("homework"))
 
     items = database.get_homework(username)
-    return render_template("homework.html", items=items)
+    now, minimum_due_date, maximum_due_date, minimum_reminder = homework_date_limits()
+    return render_template(
+        "homework.html",
+        items=items,
+        minimum_due_date=minimum_due_date.isoformat(),
+        maximum_due_date=maximum_due_date.isoformat(),
+        minimum_reminder=minimum_reminder.strftime("%Y-%m-%dT%H:%M"),
+        maximum_reminder=maximum_due_date.isoformat() + "T23:59",
+    )
+
+
+
 
 
 @app.route("/homework/<int:homework_id>/toggle", methods=["POST"])

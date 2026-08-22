@@ -8,6 +8,8 @@ Kein Server nötig -- die Datei raumradar.db wird automatisch angelegt.
 import sqlite3
 import json
 from pathlib import Path
+from datetime import datetime
+from config import LOCAL_TIMEZONE
 
 DB_PATH = Path(__file__).parent / "raumradar.db"
 
@@ -27,6 +29,7 @@ def init_db():
             subject TEXT NOT NULL,
             content TEXT NOT NULL,
             due_date TEXT,
+            reminder TEXT,
             done INTEGER DEFAULT 0,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
@@ -62,11 +65,11 @@ def init_db():
     conn.close()
 
 
-def add_homework(username, subject, content, due_date):
+def add_homework(username, subject, content, due_date, reminder):
     conn = get_connection()
     conn.execute(
-        "INSERT INTO homework (username, subject, content, due_date) VALUES (?, ?, ?, ?)",
-        (username, subject, content, due_date),
+        "INSERT INTO homework (username, subject, content, due_date, reminder) VALUES (?, ?, ?, ?, ?)",
+        (username, subject, content, due_date, reminder),
     )
     conn.commit()
     conn.close()
@@ -97,6 +100,26 @@ def delete_homework(homework_id, username):
     conn.execute("DELETE FROM homework WHERE id = ? AND username = ?", (homework_id, username))
     conn.commit()
     conn.close()
+
+
+def delete_reminder(homework_id, username):
+    conn = get_connection()
+    conn.execute("UPDATE homework SET reminder = NULL WHERE id = ? AND username = ?", (homework_id, username))
+    conn.commit()
+    conn.close()
+
+def get_all_homework_reminders():
+    conn = get_connection()
+    rows = conn.execute(
+        """
+        SELECT id, username, subject, content, due_date
+        FROM homework
+        WHERE done = FALSE AND reminder <= ?
+        """,
+        (datetime.now(LOCAL_TIMEZONE).isoformat(),)
+    ).fetchall()
+    conn.close()
+    return rows
 
 
 def save_push_subscription(
