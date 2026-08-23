@@ -164,6 +164,19 @@ def save_push_subscription(
     conn.close()
 
 
+def update_push_subscription_session(username, session_id):
+    conn = get_connection()
+    conn.execute(
+        """
+        UPDATE push_subscriptions SET untis_session = ?
+        WHERE username = ?
+        """,
+        (session_id, username),
+    )
+    conn.commit()
+    conn.close()
+
+
 def delete_push_subscription(username, endpoint):
     conn = get_connection()
     conn.execute(

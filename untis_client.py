@@ -9,6 +9,7 @@ und Stundenpläne abzufragen.
 import requests
 from datetime import date
 from concurrent.futures import ThreadPoolExecutor
+from database import update_push_subscription_session
 
 
 class UntisError(Exception):
@@ -45,6 +46,11 @@ class UntisClient:
         self.session_id = result["sessionId"]
         self.person_id = result.get("personId")
         self.person_type = result.get("personType", 5)
+
+        """When a user's session id expires, their room refresh does not work in the scheduler, therefore polling and their notifications stop working
+        This function tries to fix this, but after that session also expires push subscriptions for rooms stop working entirely for that user!"""
+        update_push_subscription_session(username, result["sessionId"])
+
         return result
 
     def logout(self):

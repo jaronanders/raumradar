@@ -1,12 +1,13 @@
 """
 sheduler.py
 ===========
-Hintergrundprozess für Raumaktualisierungen und Push-Benachrichtigungen
-für bevorzugte Räume.
+Hintergrundprozess für Raumaktualisierungen, Hausaufgaben-Erinnerungen
+und Push-Benachrichtigungen für bevorzugte Räume.
 """
 
 import logging
 import os
+import threading
 import time
 
 import database
@@ -62,23 +63,50 @@ def send_homework_reminders():
 
     for homework in homeworks:
         notify_homework(homework)
+    return len(homeworks)
+
+
+def run_room_scheduler():
+    LOGGER.info("Raum-Scheduler gestartet, Intervall: %s Sekunden", POLL_INTERVAL_SECONDS)
+    while True:
+        try:
+            refreshed = refresh_subscribed_users()
+            LOGGER.info("Raum-Scheduler: %s Benutzer aktualisiert", refreshed)
+        except Exception as error:
+            LOGGER.exception("Unerwarteter Fehler im Raum Scheduler-Zyklus: %s", error)
+
+        time.sleep(POLL_INTERVAL_SECONDS)
+
+
+def run_reminder_scheduler():
+    LOGGER.info("Erinnerungen-Scheduler gestartet, Intervall: %s Sekunden", REMINDER_INTERVAL_SECONDS)
+    while True:
+        try:
+            reminders = send_homework_reminders()
+            LOGGER.info("Erinnerungen-Scheduler: %s Erinnerungen gesendet", reminders)
+        except Exception as error:
+            LOGGER.exception("Unerwarteter Fehler im Erinnerungen Scheduler-Zyklus: %s", error)
+
+        time.sleep(REMINDER_INTERVAL_SECONDS)
 
 
 def run_scheduler():
     database.init_db()
-    LOGGER.info("Scheduler gestartet, Intervall: %s Sekunden", POLL_INTERVAL_SECONDS)
-    while True:
-        try:
-            refreshed = refresh_subscribed_users()
-            LOGGER.info("%s Benutzer aktualisiert", refreshed)
-        except Exception:
-            LOGGER.exception("Unerwarteter Fehler im Scheduler-Zyklus")
+    room_thread = threading.Thread(
+        target=run_room_scheduler,
+        daemon=True
+    )
 
-        for i in range(POLL_INTERVAL_SECONDS // REMINDER_INTERVAL_SECONDS):
-            # Hausaufgaben-Erinnerungen
-            send_homework_reminders()
+    reminder_thread = threading.Thread(
+        target=run_reminder_scheduler,
+        daemon=True
+    )
 
-            time.sleep(REMINDER_INTERVAL_SECONDS)
+    room_thread.start()
+    reminder_thread.start()
+
+    room_thread.join()
+    reminder_thread.join()
 
 
 if __name__ == "__main__":
