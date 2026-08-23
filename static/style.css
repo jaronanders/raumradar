@@ -459,7 +459,8 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     border-radius: 5px;
 }
 .timetable-card.is-past { opacity: 0.5; border-left-color: #999; }
-.timetable-card.is-current { border-left-color: var(--coral); }
+.timetable-card.is-current { border-left-color: var(--blue-glow); }
+.timetable-card.is-cancelled { opacity: 0.5; border-left-color: var(--coral); }
 .timetable-card-subject,
 .timetable-card-time,
 .timetable-meta,

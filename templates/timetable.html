@@ -8,7 +8,7 @@
 	<div class="timetable-day">
 		<h3>{% if day.is_today %}Heute{% else %}{{ day.date }}{% endif %}</h3>
 		{% for lesson in day.lessons %}
-			<article class="timetable-card{% if lesson.status == 'vorbei' %} is-past{% elif lesson.status == 'läuft gerade' %} is-current{% endif %}">
+			<article class="timetable-card{% if lesson.status == 'vorbei' %} is-past{% elif lesson.status == 'läuft gerade' %} is-current{% elif lesson.status == 'ausgefallen' %} is-cancelled{% endif %}">
 				<strong class="timetable-card-subject">{{ lesson.subject }}</strong>
 				<span class="timetable-card-time">{{ lesson.start }}–{{ lesson.end }} Uhr</span>
 				{% if lesson.room %}<span class="timetable-meta">Raum {{ lesson.room }}</span>{% endif %}

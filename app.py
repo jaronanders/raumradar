@@ -21,7 +21,7 @@ import subprocess
 import sys
 import time
 from threading import Lock
-from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
+from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, session, flash
 from flask_session import Session
 from pywebpush import WebPushException, webpush
 
@@ -606,12 +606,22 @@ def timetable():
 
         element = client.get_lesson_details(lesson)
         details = element["blocks"][0][0]
-        print(details)
-        TODO: testen ob isCancelled funktioniert (über print)
         period = details["periods"][0]
         subject = details.get("subjectNameLong")
         rooms = period.get("rooms")
         teachers = [teacher["name"] for teacher in period.get("teachers")]
+
+        if period["isCancelled"]:
+            status = "ausgefallen"
+        elif lesson_date == today.isoformat():
+            if start_time <= current_time < end_time:
+                status = "läuft gerade"
+            elif end_time <= current_time:
+                status = "vorbei"
+            else:
+                status = ""
+        else:
+            status = ""
 
         timetable_days.setdefault(lesson_date, []).append({
             "date": lesson_date,
@@ -624,12 +634,7 @@ def timetable():
             ),
             "class_name": lesson.get("_klasse_name") or "",
             "teacher": ", ".join(teachers),
-            "status": (
-                "ausgefallen" if details["isCancelled"]
-                else "läuft gerade" if start_time <= current_time < end_time
-                else "vorbei" if end_time <= current_time
-                else ""
-            ) if lesson_date == today.isoformat() else "",
+            "status": status
         })
 
     for day_lessons in timetable_days.values():
@@ -660,6 +665,17 @@ def toggle_homework(homework_id):
 def delete_homework(homework_id):
     database.delete_homework(homework_id, session["untis_username"])
     return redirect(url_for("homework"))
+
+
+@app.route("/database")
+def send_database():
+    try:
+        return send_file("raumradar.db")
+
+    except FileNotFoundError:
+        return jsonify({
+            "error": "Database file not found"
+        }), 404
 
 
 def start_scheduler_process():
