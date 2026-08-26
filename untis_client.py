@@ -94,7 +94,7 @@ class UntisClient:
         return result
 
     def get_timetable_for_student(self, student_id, days: list = None):
-        """Stundenplan eines einzelnen Schülers für einen Tag (default: heute)."""
+        """Stundenplan eines einzelnen Schülers für einen oder mehrere Tage (default: heute)."""
         if not days:
             start = end = int(date.today().strftime("%Y%m%d"))
         else:

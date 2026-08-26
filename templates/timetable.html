@@ -15,7 +15,7 @@
 				<span class="timetable-meta">{% if lesson.room %}Raum {% if lesson.substitution and lesson.substitution.original_room %}<s>{{ lesson.substitution.original_room }}</s> → <b>{{ lesson.substitution.new_room }}</b>{% else %}{{ lesson.room }}{% endif %}{% else %}Kein Raum</span>{% endif %}
 				<span class="timetable-meta">{% if lesson.teacher %}{{ lesson.teacher }}{% else %}Kein Lehrer</span>{% endif %}
 				{% if lesson.info %}<span class="timetable-meta timetable-info"><img src="{{ url_for('static', filename='info.svg') }}" alt="Info">{{ lesson.info }}</span>{% endif %}
-				{% if lesson.status %}{% if lesson.status != 'geändert' %}<span class="timetable-status {{ lesson.status|replace(' ', '-') }}">{{ lesson.status }}</span>{% elif lesson.substitution and lesson.substitution.text %}<span class="timetable-status {{ lesson.status|replace(' ', '-') }}">{{ lesson.substitution.text }}</span>{% endif %}{% endif %}
+				{% if lesson.status %}{% if lesson.substitution and lesson.substitution.text %}<span class="timetable-status {{ lesson.status|replace(' ', '-') }}">{{ lesson.substitution.text }}</span>{% else%}<span class="timetable-status {{ lesson.status|replace(' ', '-') }}">{{ lesson.status }}</span>{% endif %}{% endif %}
 			</article>
 		{% else %}
 			<p class="timetable-empty">Keine Unterrichtsstunden</p>

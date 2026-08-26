@@ -1,2 +1,1 @@
-web: gunicorn app:app
-scheduler: python scheduler.py
+web: gunicorn -w 1 --threads 4 app:app
