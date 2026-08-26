@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 from config import LOCAL_TIMEZONE
+# from crypto import encrypt_password, decrypt_password
 
 DB_PATH = Path(__file__).parent / "raumradar.db"
 
@@ -32,6 +33,12 @@ def init_db():
             reminder TEXT,
             done INTEGER DEFAULT 0,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS logins (
+            username TEXT PRIMARY KEY NOT NULL,
+            password TEXT NOT NULL
         )
     """)
     conn.execute("""
@@ -63,6 +70,42 @@ def init_db():
             pass
     conn.commit()
     conn.close()
+
+
+def save_untis_password(username, password):
+    return ""
+    # conn = get_connection()
+    # conn.execute("""
+    #     INSERT INTO logins (username, password) VALUES (?, ?)
+    #     ON CONFLICT(username) DO UPDATE SET password = excluded.password
+    #     """,
+    #     (username, encrypt_password(password))
+    # )
+    # conn.commit()
+    # conn.close()
+
+
+def delete_untis_password(username):
+    conn = get_connection()
+    conn.execute(
+        "DELETE FROM logins WHERE username = ?",
+        (username,)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_untis_password(username):
+    return ""
+    # conn = get_connection()
+    # row = conn.execute(
+    #     "SELECT password FROM logins WHERE username = ?", (username,)
+    # ).fetchone()
+
+    # if row is None:
+    #     return
+
+    # return decrypt_password(row["password"])
 
 
 def add_homework(username, subject, content, due_date, reminder):

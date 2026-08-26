@@ -9,7 +9,7 @@ und Stundenpläne abzufragen.
 import requests
 from datetime import date
 from concurrent.futures import ThreadPoolExecutor
-from database import update_push_subscription_session
+from database import update_push_subscription_session, save_untis_password, delete_untis_password, get_untis_password
 
 
 class UntisError(Exception):
@@ -18,23 +18,39 @@ class UntisError(Exception):
 
 
 class UntisClient:
-    def __init__(self, school, server):
+    def __init__(self, school, server, username=None):
         self.school = school
         self.server = server
         self.base_url = f"https://{server}/WebUntis/jsonrpc.do?school={school}"
         self.session = requests.Session()
+        self.username = username
         self.session_id = None
         self.person_id = None
         self.person_type = 5
 
-    def _rpc(self, method, params):
+    def _rpc(self, method, params, retry=True):
         payload = {"id": "req", "method": method, "params": params, "jsonrpc": "2.0"}
         cookies = {"JSESSIONID": self.session_id} if self.session_id else {}
         resp = self.session.post(self.base_url, json=payload, cookies=cookies, timeout=15)
         resp.raise_for_status()
         data = resp.json()
         if "error" in data:
-            raise UntisError(data["error"].get("message", str(data["error"])))
+            message = data["error"].get("message", str(data["error"]))
+
+            # Re-authenticate with password
+            if retry and self.session_id and "not authenticated" in message:
+                self.session_id = None
+
+                if self.username is None:
+                    raise UntisError(message)
+
+                password = get_untis_password(self.username)
+
+                self.login(self.username, password)
+
+                return self._rpc(method, params, retry=False)
+
+            raise UntisError(message)
         return data["result"]
 
     def login(self, username, password):
@@ -43,17 +59,22 @@ class UntisClient:
             "password": password,
             "client": "RaumRadar",
         })
+        self.username = username
         self.session_id = result["sessionId"]
         self.person_id = result.get("personId")
         self.person_type = result.get("personType", 5)
 
+        save_untis_password(username, password)
+
         """When a user's session id expires, their room refresh does not work in the scheduler, therefore polling and their notifications stop working
-        This function tries to fix this, but after that session also expires push subscriptions for rooms stop working entirely for that user!"""
+        This updates the session id after re-authentication"""
         update_push_subscription_session(username, result["sessionId"])
 
         return result
 
     def logout(self):
+        if self.username:
+            delete_untis_password(self.username)
         if self.session_id:
             try:
                 self._rpc("logout", {})
@@ -90,8 +111,8 @@ class UntisClient:
         return result
 
 
-    def get_lesson_details(self, lesson):
-        """Holt Detaildaten zu einer Stundenplanperiode."""
+    def get_lesson_details(self, lesson, retry=True):
+        """Holt Detaildaten zu einer Unterrichtsstunde."""
         if not isinstance(lesson, dict) or lesson.get("id") is None:
             return {}
 
@@ -113,7 +134,22 @@ class UntisClient:
         response.raise_for_status()
         data = response.json()
         if "error" in data:
-            raise UntisError(data["error"].get("message", str(data["error"])))
+            message = data["error"].get("message", str(data["error"]))
+            
+            # Re-authenticate with password
+            if retry and self.session_id and "not authenticated" in message:
+                self.session_id = None
+
+                if self.username is None:
+                    raise UntisError(message)
+
+                password = get_untis_password(self.username)
+
+                self.login(self.username, password)
+
+                return self.get_lesson_details(lesson, retry=False)
+
+            raise UntisError(message)
         return data.get("data", data)
 
 
@@ -158,4 +194,3 @@ class UntisClient:
         for lessons in lesson_groups:
             all_lessons.extend(lessons)
         return all_lessons
-

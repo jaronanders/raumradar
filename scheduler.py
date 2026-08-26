@@ -16,8 +16,10 @@ from untis_client import UntisClient
 
 
 LOGGER = logging.getLogger("raumradar.scheduler")
-POLL_INTERVAL_SECONDS = max(30, int(os.environ.get("SCHEDULER_INTERVAL_SECONDS", "120")))
+ROOM_INTERVAL_SECONDS = max(30, int(os.environ.get("ROOM_INTERVAL_SECONDS", "120")))
 REMINDER_INTERVAL_SECONDS = max(30, int(os.environ.get("REMINDER_INTERVAL_SECONDS", "60")))
+LESSON_INTERVAL_SECONDS = max(300, int(os.environ.get("LESSON_INTERVAL_SECONDS", "600")))
+TIMETABLE_INTERVAL_SECONDS = max(900, int(os.environ.get("TIMETABLE_INTERVAL_SECONDS", "1800")))
 
 
 def refresh_subscribed_users():
@@ -39,7 +41,7 @@ def refresh_subscribed_users():
             LOGGER.info("Überspringe %s: keine aktuelle Untis-Session gespeichert", username)
             continue
 
-        client = UntisClient(school, server)
+        client = UntisClient(school, server, username)
         client.session_id = session_id
         try:
             rooms = client.get_rooms()
@@ -67,7 +69,7 @@ def send_homework_reminders():
 
 
 def run_room_scheduler():
-    LOGGER.info("Raum-Scheduler gestartet, Intervall: %s Sekunden", POLL_INTERVAL_SECONDS)
+    LOGGER.info("Raum-Scheduler gestartet, Intervall: %s Sekunden", ROOM_INTERVAL_SECONDS)
     while True:
         try:
             refreshed = refresh_subscribed_users()
@@ -75,7 +77,7 @@ def run_room_scheduler():
         except Exception as error:
             LOGGER.exception("Unerwarteter Fehler im Raum Scheduler-Zyklus: %s", error)
 
-        time.sleep(POLL_INTERVAL_SECONDS)
+        time.sleep(ROOM_INTERVAL_SECONDS)
 
 
 def run_reminder_scheduler():
@@ -88,6 +90,28 @@ def run_reminder_scheduler():
             LOGGER.exception("Unerwarteter Fehler im Erinnerungen Scheduler-Zyklus: %s", error)
 
         time.sleep(REMINDER_INTERVAL_SECONDS)
+
+
+def run_lesson_scheduler():
+    LOGGER.info("Unterrichtsstunden-Scheduler gestartet, Intervall: %s Sekunden", )
+    while True:
+        try:
+            pass
+        except Exception as error:
+            LOGGER.exception("Unerwarteter Fehler im Unterrichtsstunden Scheduler-Zyklus: %s", error)
+
+        time.sleep(LESSON_INTERVAL_SECONDS)
+
+
+def run_timetable_scheduler():
+    LOGGER.info("Stundenplan-Scheduler gestartet, Intervall: %s Sekunden", )
+    while True:
+        try:
+            pass
+        except Exception as error:
+            LOGGER.exception("Unerwarteter Fehler im Stundenplan Scheduler-Zyklus: %s", error)
+
+        time.sleep(TIMETABLE_INTERVAL_SECONDS)
 
 
 def run_scheduler():

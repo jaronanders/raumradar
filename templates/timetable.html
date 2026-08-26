@@ -1,20 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Stundenplan</h2>
-<p>{{ timetable_date }}</p>
+<p>{% if student %}{{ student }}<br>{% endif %}
+{{ timetable_date }}</p>
 
 <section class="timetable-week" aria-label="Stundenplan für mehrere Tage">
 	{% for day in timetable_days %}
 	<div class="timetable-day">
 		<h3>{% if day.is_today %}Heute{% else %}{{ day.date }}{% endif %}</h3>
 		{% for lesson in day.lessons %}
-			<article class="timetable-card{% if lesson.status == 'vorbei' %} is-past{% elif lesson.status == 'läuft gerade' %} is-current{% elif lesson.status == 'ausgefallen' %} is-cancelled{% endif %}">
+			<article class="timetable-card{% if lesson.status == 'vorbei' %} is-past{% elif lesson.status == 'läuft gerade' %} is-current{% elif lesson.status == 'geändert' %} is-changed{% elif lesson.status == 'ausgefallen' %} is-cancelled{% endif %}">
 				<strong class="timetable-card-subject">{{ lesson.subject }}</strong>
 				<span class="timetable-card-time">{{ lesson.start }}–{{ lesson.end }} Uhr</span>
-				{% if lesson.room %}<span class="timetable-meta">Raum {{ lesson.room }}</span>{% endif %}
-				{% if lesson.class_name %}<span class="timetable-meta">Klasse {{ lesson.class_name }}</span>{% endif %}
-				{% if lesson.teacher %}<span class="timetable-meta">{{ lesson.teacher }}</span>{% endif %}
-				{% if lesson.status %}<span class="timetable-status {{ lesson.status|replace(' ', '-') }}">{{ lesson.status }}</span>{% endif %}
+				<span class="timetable-meta">{% if lesson.room %}Raum {% if lesson.substitution and lesson.substitution.original_room %}<s>{{ lesson.substitution.original_room }}</s> → <b>{{ lesson.substitution.new_room }}</b>{% else %}{{ lesson.room }}{% endif %}{% else %}Kein Raum</span>{% endif %}
+				<span class="timetable-meta">{% if lesson.teacher %}{{ lesson.teacher }}{% else %}Kein Lehrer</span>{% endif %}
+				{% if lesson.info %}<span class="timetable-meta timetable-info"><img src="{{ url_for('static', filename='info.svg') }}" alt="Info">{{ lesson.info }}</span>{% endif %}
+				{% if lesson.status %}{% if lesson.status != 'geändert' %}<span class="timetable-status {{ lesson.status|replace(' ', '-') }}">{{ lesson.status }}</span>{% elif lesson.substitution and lesson.substitution.text %}<span class="timetable-status {{ lesson.status|replace(' ', '-') }}">{{ lesson.substitution.text }}</span>{% endif %}{% endif %}
 			</article>
 		{% else %}
 			<p class="timetable-empty">Keine Unterrichtsstunden</p>

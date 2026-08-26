@@ -460,6 +460,7 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
 }
 .timetable-card.is-past { opacity: 0.5; border-left-color: #999; }
 .timetable-card.is-current { border-left-color: var(--blue-glow); }
+.timetable-card.is-changed { border-left-color: #ffd633; }
 .timetable-card.is-cancelled { opacity: 0.5; border-left-color: var(--coral); }
 .timetable-card-subject,
 .timetable-card-time,
@@ -472,6 +473,16 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     font-size: 0.85rem;
     margin-top: 0.2rem;
 }
+.timetable-info {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.timetable-info img {
+    flex: 0 0 auto;
+    width: 1rem;
+    height: 1rem;
+}
 .timetable-status {
     margin-top: 0.35rem;
     color: var(--teal);
@@ -480,6 +491,7 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
 }
 .timetable-status.vorbei { color: #888; }
 .timetable-status.läuft-gerade { color: var(--blue-glow); }
+.timetable-status.geändert {color: #ffd633}
 .timetable-status.ausgefallen {color: var(--coral)}
 .timetable-empty { color: #666; font-size: 0.85rem; }
 
@@ -504,7 +516,7 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
 }
 
 @media (max-width: 640px) {
-    header { padding: 0.9rem 0.75rem; display: flex; align-items: center; flex-direction: column; gap: 0.7rem; }
+    header { padding: 0.9rem 0.75rem; display: flex; align-items: center; flex-direction: column; gap: 0.7rem; backdrop-filter: none;}
     .brand { order: 1; }
     header nav { order: 2; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.35rem; }
     nav a { margin-left: 0; }
@@ -515,7 +527,7 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     .room-grid { gap: 0.45rem; margin-bottom: 1.4rem; }
     .room-chip { padding: 0.58rem 0.78rem; font-size: 0.84rem; box-shadow: none;}
     .room-chip.free { box-shadow: none; backdrop-filter: none;}
-    .favorite-section { margin: 1rem 0 1.5rem; padding: 0.65rem 0.75rem 0.9rem; border-radius: 20px; }
+    .favorite-section { margin: 1rem 0 1.5rem; padding: 0.65rem 0.75rem 0.9rem; border-radius: 20px; backdrop-filter: none;}
     .favorite-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; }
     .favorite-chip { padding: 0.5rem 0.35rem; font-size: 0.82rem; }
     .refresh-row { flex-wrap: wrap; gap: 0.45rem; margin-top: 1rem; }

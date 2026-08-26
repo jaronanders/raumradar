@@ -21,7 +21,7 @@ import subprocess
 import sys
 import time
 from threading import Lock
-from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, session, flash
+from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, session, flash, abort
 from flask_session import Session
 from pywebpush import WebPushException, webpush
 
@@ -37,10 +37,16 @@ Session(app)
 
 database.init_db()
 
+ADMINS = ("GundLutw", "AndeJaro")
+
 ROOM_DATA_CACHE = {}
 ROOM_DATA_CACHE_SECONDS = 120
 ROOM_DATA_CACHE_LOCK = Lock()
 ROOM_DATA_REFRESH_LOCK = Lock()
+TIMETABLE_CACHE = {}
+TIMETABLE_CACHE_SECONDS = 300
+TIMETABLE_CACHE_LOCK = Lock()
+TIMETABLE_REFRESH_LOCK = Lock()
 ALLOWED_ROOM_NAMES = {
     "101", "102", "103", "104", "105", "106", "107", "108", "114", "115",
     "120", "121", "125", "126", "127", "128", "129", "130", "131", "136",
@@ -50,6 +56,7 @@ ALLOWED_ROOM_NAMES = {
     "A11", "B01", "B02", "B03", "B04", "B05", "E01", "E03", "E27", "E29",
     "E31",
 }
+BREAKS = ((830, 840), (940, 1000), (1100, 1110), (1250, 1300), (1400, 1410))
 BELEGTE_RAEUME_MITTAGSPAUSE = {
     #TODO: Hier Räume eintragen, die in der Mittagspause belegt sind
 }
@@ -59,6 +66,7 @@ VAPID_CLAIMS = {"sub": os.environ.get("VAPID_SUBJECT", "mailto:admin@example.com
 
 WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 
+
 def get_current_stunde_zeit():
     """Grobe Hilfsfunktion: aktuelle Uhrzeit als HHMM-Zahl (Untis-Format)."""
     test_time = os.environ.get("TEST_TIME")
@@ -67,6 +75,13 @@ def get_current_stunde_zeit():
     now = datetime.now(LOCAL_TIMEZONE)
     return now.hour * 100 + now.minute
 
+
+def go_to_next_lesson(current_time):
+    # Pausen überspringen (ausgenommen Mittagspause)
+    for start, end in BREAKS:
+        if start <= current_time < end:
+            return end
+    return current_time
 
 def get_local_date():
     return datetime.now(LOCAL_TIMEZONE).date()
@@ -186,7 +201,7 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        client = UntisClient(school, server)
+        client = UntisClient(school, server, username)
         try:
             client.login(username, password)
         except UntisError as e:
@@ -212,7 +227,7 @@ def login():
 @app.route("/logout")
 def logout():
     if session.get("untis_session"):
-        client = UntisClient(session["untis_school"], session["untis_server"])
+        client = UntisClient(session["untis_school"], session["untis_server"], session["untis_username"])
         client.session_id = session["untis_session"]
         client.logout()
     session.clear()
@@ -399,7 +414,7 @@ def notify_homework(homework):
 
 def get_client_from_session():
     """Baut aus der Browser-Session einen UntisClient ohne Passwort auf."""
-    client = UntisClient(session["untis_school"], session["untis_server"])
+    client = UntisClient(session["untis_school"], session["untis_server"], session["untis_username"])
     client.session_id = session["untis_session"]
     client.person_id = session.get("untis_person_id")
     return client
@@ -499,7 +514,7 @@ def free_rooms():
         flash(f"Fehler beim Abrufen der Daten: {e}")
         return redirect(url_for("login"))
 
-    current_time = get_current_stunde_zeit()
+    current_time = go_to_next_lesson(get_current_stunde_zeit())
 
     if not lessons:
         flash("Untis hat für heute keine Stundenplandaten geliefert. Die Raumbelegung ist deshalb nicht sicher bestimmbar.")
@@ -576,6 +591,33 @@ def homework():
     )
 
 
+def get_timetable(client, days):
+    person_id = client.person_id
+
+    cache_key = (
+        person_id,
+        get_local_date(),
+    )
+    with TIMETABLE_CACHE_LOCK:
+        cached = TIMETABLE_CACHE.get(cache_key)
+        if cached and time.monotonic() - cached["created"] < TIMETABLE_CACHE_SECONDS:
+            return cached["lessons"]
+
+    with TIMETABLE_REFRESH_LOCK:
+        with TIMETABLE_CACHE_LOCK:
+            cached = TIMETABLE_CACHE.get(cache_key)
+            if cached and time.monotonic() - cached["created"] < TIMETABLE_CACHE_SECONDS:
+                return cached["lessons"]
+
+        lessons = client.get_timetable_for_student(person_id, days=days)
+        with TIMETABLE_CACHE_LOCK:
+            TIMETABLE_CACHE[cache_key] = {
+                "created": time.monotonic(),
+                "lessons": lessons,
+            }
+        return lessons
+
+
 @app.route("/timetable")
 def timetable():
     if "untis_session" not in session:
@@ -584,7 +626,7 @@ def timetable():
     today = get_local_date()
     try:
         client = get_client_from_session()
-        lessons = client.get_timetable_for_student(client.person_id, days=[today, today + timedelta(days=4)])
+        lessons = get_timetable(client, days=[today, today + timedelta(days=4)])
     except UntisError as error:
         session.clear()
         flash(f"Fehler beim Abrufen der Daten: {error}")
@@ -607,19 +649,43 @@ def timetable():
         element = client.get_lesson_details(lesson)
         details = element["blocks"][0][0]
         period = details["periods"][0]
-        subject = details.get("subjectNameLong")
-        rooms = period.get("rooms")
-        teachers = [teacher["name"] for teacher in period.get("teachers")]
+        student = element.get("elementName")
+        subject = details["subjectNameLong"] if details.get("subjectNameLong") and len(details["subjectNameLong"]) <= 15 else details.get("subjectName")
+        info = details.get("lessonInfo")
+        substitute_text = period.get("substText")
+
+        room_changes = []
+        for substitution in details.get("roomSubstitutions", []):
+            org_room = substitution.get("orgRoom")
+            cur_room = substitution.get("curRoom")
+
+            if org_room and cur_room and org_room.get("id") != cur_room.get("id"):
+                room_changes.append({
+                    "original_room": org_room.get("name") or "",
+                    "new_room": cur_room.get("name") or ""
+                })
+
+        if substitute_text or room_changes:
+            rooms = []
+
+            substitution = {
+                "text": substitute_text,
+                "original_room": ", ".join(change["original_room"] for change in room_changes),
+                "new_room": ", ".join(change["new_room"] for change in room_changes)
+            }
+        else:
+            substitution = None
+            rooms = period.get("rooms")
+            teachers = [teacher["name"] for teacher in period.get("teachers")]
 
         if period["isCancelled"]:
             status = "ausgefallen"
-        elif lesson_date == today.isoformat():
-            if start_time <= current_time < end_time:
-                status = "läuft gerade"
-            elif end_time <= current_time:
-                status = "vorbei"
-            else:
-                status = ""
+        elif lesson_date <= today.isoformat() and end_time <= current_time:
+            status = "vorbei"
+        elif lesson_date == today.isoformat() and start_time <= current_time < end_time:
+            status = "läuft gerade"
+        elif substitution or not any(teachers) or not any(rooms):
+            status = "geändert"
         else:
             status = ""
 
@@ -631,10 +697,11 @@ def timetable():
             "room": ", ".join(
                 room.get("name") if isinstance(room, dict) else str(room)
                 for room in rooms
-            ),
-            "class_name": lesson.get("_klasse_name") or "",
-            "teacher": ", ".join(teachers),
-            "status": status
+            ) if any(rooms) else "",
+            "teacher": ", ".join(teachers) if any(teachers) else "",
+            "status": status,
+            "info": info or "",
+            "substitution": substitution
         })
 
     for day_lessons in timetable_days.values():
@@ -650,6 +717,7 @@ def timetable():
     ]
     return render_template(
         "timetable.html",
+        student=student,
         timetable_days=timetable_days,
         timetable_date=f"{WEEKDAYS[today.weekday()]}, " + today.strftime("%d.%m.%Y"),
     )
@@ -669,6 +737,12 @@ def delete_homework(homework_id):
 
 @app.route("/database")
 def send_database():
+    if "untis_session" not in session:
+        return redirect(url_for("login"))
+
+    if session["untis_username"] not in ADMINS:
+        abort(403)
+
     try:
         return send_file("raumradar.db")
 
