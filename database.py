@@ -1,8 +1,10 @@
 """
 database.py
 ===========
-Sehr einfache lokale SQLite-Datenbank für Notizen & Hausaufgaben.
+Lokale SQLite-Datenbank für Notizen, Hausaufgaben, Benachrichtigungen & Anmeldedaten.
 Kein Server nötig -- die Datei raumradar.db wird automatisch angelegt.
+
+Leider wird die Datenbank im Moment immer bei neuen Updates zurückgesetzt, da sie nicht auf Render gespeichert bleibt.
 """
 
 import sqlite3
@@ -33,6 +35,13 @@ def init_db():
             reminder TEXT,
             done INTEGER DEFAULT 0,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS game_scores (
+            username TEXT PRIMARY KEY,
+            high_score REAL NOT NULL DEFAULT 0,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
     conn.execute("""
@@ -283,3 +292,34 @@ def update_push_subscription_notification_state(endpoint, free_rooms):
     )
     conn.commit()
     conn.close()
+
+
+def submit_game_score(username, score):
+    """Speichert den Score nur, wenn er höher als der bisherige Highscore ist."""
+    conn = get_connection()
+    conn.execute(
+        """
+        INSERT INTO game_scores (username, high_score, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(username) DO UPDATE SET
+            updated_at = CASE
+                WHEN excluded.high_score > game_scores.high_score
+                THEN CURRENT_TIMESTAMP
+                ELSE game_scores.updated_at
+            END,
+            high_score = MAX(game_scores.high_score, excluded.high_score)
+        """,
+        (username, score),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_leaderboard(limit=20):
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT username, high_score FROM game_scores ORDER BY high_score DESC, updated_at ASC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    conn.close()
+    return rows

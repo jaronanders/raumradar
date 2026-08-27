@@ -14,7 +14,17 @@ from database import update_push_subscription_session, save_untis_password, dele
 
 class UntisError(Exception):
     """Wird geworfen, wenn Untis einen Fehler zurückgibt (z.B. falsches Passwort)."""
-    pass
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
+
+    def __str__(self):
+        if "bad credentials" in self.message:
+            return "Falsche Anmeldedaten"
+        elif "not authenticated" in self.message:
+            return "Sitzung abgelaufen"
+        else:
+            return "Unbekannter Fehler"
 
 
 class UntisClient:
