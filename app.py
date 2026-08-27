@@ -427,7 +427,7 @@ def timetable():
                 })
 
         if substitute_text or room_changes:
-            
+
             substitution = {
                 "text": substitute_text,
                 "original_room": ", ".join(change["original_room"] for change in room_changes),
@@ -457,7 +457,6 @@ def timetable():
                 room.get("name") if isinstance(room, dict) else str(room)
                 for room in rooms
             ) if any(rooms) else "",
-            "teacher": ", ".join(teachers),
             "teacher": ", ".join(teachers),
             "status": status,
             "info": info or "",
