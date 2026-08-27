@@ -691,6 +691,8 @@ def timetable():
                     "new_room": cur_room.get("name") or ""
                 })
 
+        teachers = [teacher["name"] for teacher in period.get("teachers")]
+
         if substitute_text or room_changes:
             rooms = []
 
@@ -702,7 +704,6 @@ def timetable():
         else:
             substitution = None
             rooms = period.get("rooms")
-            teachers = [teacher["name"] for teacher in period.get("teachers")]
 
         if period["isCancelled"]:
             status = "ausgefallen"
