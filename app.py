@@ -2,8 +2,10 @@
 app.py
 ======
 RaumRadar - lokale Testversion als Flask-Webanwendung.
+
 Starten:
     python app.py
+
 Dann im Browser öffnen:
     http://127.0.0.1:5000
 """
@@ -11,15 +13,11 @@ Dann im Browser öffnen:
 from config import LOCAL_TIMEZONE
 from calendar import monthrange
 from datetime import datetime, date, time as uhrzeit, timedelta
-import atexit
 import logging
 import json
 import os
 import secrets
-import subprocess
-import sys
 import time
-from threading import Lock
 from threading import Lock, Thread
 from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, session, flash, abort
 from flask_session import Session
@@ -57,9 +55,6 @@ ALLOWED_ROOM_NAMES = {
     "E31",
 }
 BREAKS = ((830, 840), (940, 1000), (1100, 1110), (1250, 1300), (1400, 1410))
-BELEGTE_RAEUME_MITTAGSPAUSE = {
-    #TODO: Hier Räume eintragen, die in der Mittagspause belegt sind
-}
 BELEGTE_RAEUME_MITTAGSPAUSE = [
     {"138"}, # Junior-SV
     {"138"}, # SV
@@ -102,6 +97,8 @@ def get_next_weekdays(start_day, count):
             weekdays.append(current_day)
         current_day += timedelta(days=1)
     return weekdays
+
+
 def add_one_month(value):
     month = value.month % 12 + 1
     year = value.year + (value.month == 12)
@@ -432,6 +429,7 @@ def get_client_from_session():
     """Baut aus der Browser-Session einen UntisClient ohne Passwort auf."""
     if not session.get("created_at") or datetime.now(LOCAL_TIMEZONE) - datetime.fromisoformat(session["created_at"]) > timedelta(weeks=1):
         raise UntisError("Sitzung abgelaufen")
+
     client = UntisClient(session["untis_school"], session["untis_server"], session["untis_username"])
     client.session_id = session["untis_session"]
     client.person_id = session.get("untis_person_id")
@@ -450,7 +448,6 @@ def calculate_room_status(rooms, lessons, current_time):
 
     now = datetime.now(LOCAL_TIMEZONE).time()
     if uhrzeit(12, 10) <= now < uhrzeit(13, 0):
-        occupied_room_names.update(BELEGTE_RAEUME_MITTAGSPAUSE)
         occupied_room_names.update(BELEGTE_RAEUME_MITTAGSPAUSE[date.today().weekday()])
 
     allowed_room_names = {normalize_room_name(room_name) for room_name in ALLOWED_ROOM_NAMES}
@@ -646,7 +643,6 @@ def timetable():
     timetable_dates = get_next_weekdays(today, 5)
     try:
         client = get_client_from_session()
-        lessons = get_timetable(client, days=[today, today + timedelta(days=4)])
         lessons = get_timetable(client, days=timetable_dates)
     except UntisError as error:
         session.clear()
@@ -654,10 +650,6 @@ def timetable():
         return redirect(url_for("login"))
 
     current_time = get_current_stunde_zeit()
-    timetable_days = {
-        (today + timedelta(days=offset)).isoformat(): []
-        for offset in range(5)
-    }
     timetable_days = {day.isoformat(): [] for day in timetable_dates}
     for lesson in lessons or []:
         if not isinstance(lesson, dict):
@@ -675,8 +667,6 @@ def timetable():
         period = details["periods"][0]
         student = element.get("elementName")
         subject = details["subjectNameLong"] if details.get("subjectNameLong") and len(details["subjectNameLong"]) <= 15 else details.get("subjectName")
-        info = details.get("lessonInfo")
-        substitute_text = period.get("substText")
         info = (inf if (inf := details.get("lessonInfo")) and len(inf) < 35 else inf[:32] + "..." if inf else None)
         substitute_text = (subst_text if (subst_text := period.get("substText")) and len(subst_text) < 13 else None)
 
@@ -692,10 +682,9 @@ def timetable():
                 })
 
         teachers = [teacher["name"] for teacher in period.get("teachers")]
+        rooms = period.get("rooms")
 
         if substitute_text or room_changes:
-            rooms = []
-
             substitution = {
                 "text": substitute_text,
                 "original_room": ", ".join(change["original_room"] for change in room_changes),
@@ -703,7 +692,6 @@ def timetable():
             }
         else:
             substitution = None
-            rooms = period.get("rooms")
 
         if period["isCancelled"]:
             status = "ausgefallen"
@@ -725,7 +713,7 @@ def timetable():
                 room.get("name") if isinstance(room, dict) else str(room)
                 for room in rooms
             ) if any(rooms) else "",
-            "teacher": ", ".join(teachers) if any(teachers) else "",
+            "teacher": ", ".join(teachers),
             "status": status,
             "info": info or "",
             "substitution": substitution
@@ -779,20 +767,20 @@ def send_database():
         }), 404
 
 
-def start_scheduler_process():
-    if os.environ.get("START_SCHEDULER", "1") == "0":
-        return None
 """
 Scheduler
 ===========
 Hintergrundprozess für Raumaktualisierungen, Hausaufgaben-Erinnerungen
 und Push-Benachrichtigungen für bevorzugte Räume.
 """
+
 LOGGER = logging.getLogger("raumradar.scheduler")
 ROOM_INTERVAL_SECONDS = max(30, int(os.environ.get("ROOM_INTERVAL_SECONDS", "120")))
 REMINDER_INTERVAL_SECONDS = max(30, int(os.environ.get("REMINDER_INTERVAL_SECONDS", "60")))
 LESSON_INTERVAL_SECONDS = max(300, int(os.environ.get("LESSON_INTERVAL_SECONDS", "600")))
 TIMETABLE_INTERVAL_SECONDS = max(900, int(os.environ.get("TIMETABLE_INTERVAL_SECONDS", "1800")))
+
+
 def refresh_subscribed_users():
     """Refresh each user's timetable and notify newly free favorite rooms."""
     subscriptions = database.get_all_push_subscriptions()
@@ -805,11 +793,13 @@ def refresh_subscribed_users():
             subscription["untis_session"],
         )
         users[key] = subscription
+
     refreshed = 0
     for (username, school, server, session_id), _subscription in users.items():
         if not all((school, server, session_id)):
             LOGGER.info("Überspringe %s: keine aktuelle Untis-Session gespeichert", username)
             continue
+
         client = UntisClient(school, server, username)
         client.session_id = session_id
         try:
@@ -826,17 +816,9 @@ def refresh_subscribed_users():
         except Exception as error:
             LOGGER.warning("Raum-Refresh für %s fehlgeschlagen: %s", username, error)
 
-    scheduler_path = os.path.join(os.path.dirname(__file__), "scheduler.py")
-    process = subprocess.Popen([sys.executable, scheduler_path])
     return refreshed
 
-    def stop_scheduler():
-        if process.poll() is None:
-            process.terminate()
 
-    atexit.register(stop_scheduler)
-    app.logger.info("Scheduler gestartet (PID %s)", process.pid)
-    return process
 def send_homework_reminders():
     homeworks = database.get_all_homework_reminders()
 
@@ -844,7 +826,7 @@ def send_homework_reminders():
         notify_homework(homework)
     return len(homeworks)
 
-if __name__ == "__main__":
+
 def run_room_scheduler():
     LOGGER.info("Raum-Scheduler gestartet, Intervall: %s Sekunden", ROOM_INTERVAL_SECONDS)
     while True:
@@ -853,7 +835,10 @@ def run_room_scheduler():
             LOGGER.info("Raum-Scheduler: %s Benutzer aktualisiert", refreshed)
         except Exception as error:
             LOGGER.exception("Unerwarteter Fehler im Raum Scheduler-Zyklus: %s", error)
+
         time.sleep(ROOM_INTERVAL_SECONDS)
+
+
 def run_reminder_scheduler():
     LOGGER.info("Erinnerungen-Scheduler gestartet, Intervall: %s Sekunden", REMINDER_INTERVAL_SECONDS)
     while True:
@@ -862,7 +847,10 @@ def run_reminder_scheduler():
             LOGGER.info("Erinnerungen-Scheduler: %s Erinnerungen gesendet", reminders)
         except Exception as error:
             LOGGER.exception("Unerwarteter Fehler im Erinnerungen Scheduler-Zyklus: %s", error)
+
         time.sleep(REMINDER_INTERVAL_SECONDS)
+
+
 def run_lesson_scheduler():
     LOGGER.info("Unterrichtsstunden-Scheduler gestartet, Intervall: %s Sekunden", )
     while True:
@@ -870,7 +858,10 @@ def run_lesson_scheduler():
             pass
         except Exception as error:
             LOGGER.exception("Unerwarteter Fehler im Unterrichtsstunden Scheduler-Zyklus: %s", error)
+
         time.sleep(LESSON_INTERVAL_SECONDS)
+
+
 def run_timetable_scheduler():
     LOGGER.info("Stundenplan-Scheduler gestartet, Intervall: %s Sekunden", )
     while True:
@@ -878,25 +869,27 @@ def run_timetable_scheduler():
             pass
         except Exception as error:
             LOGGER.exception("Unerwarteter Fehler im Stundenplan Scheduler-Zyklus: %s", error)
+
         time.sleep(TIMETABLE_INTERVAL_SECONDS)
+
+
 def start_background_scheduler():
     if os.environ.get("START_SCHEDULER", "1") == "0":
         return
     debug = os.environ.get("FLASK_DEBUG") == "1"
-    if not debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        start_scheduler_process()
     if debug and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
         return
+
     # Thread(target=run_lesson_scheduler, daemon=True).start()
     # Thread(target=run_timetable_scheduler, daemon=True).start()
     Thread(target=run_room_scheduler, daemon=True).start()
     Thread(target=run_reminder_scheduler, daemon=True).start()
+
 start_background_scheduler()
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", "5000")),
-        debug=debug,
-    )
         debug=os.environ.get("FLASK_DEBUG") == "1",
     )
