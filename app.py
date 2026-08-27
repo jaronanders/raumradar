@@ -13,6 +13,7 @@ Dann im Browser öffnen:
 from config import *
 from datetime import datetime, date, time as uhrzeit, timedelta
 import os
+import asyncio
 import secrets
 import time
 import logging
@@ -35,7 +36,7 @@ app.config["SESSION_FILE_DIR"] = os.path.join(app.instance_path, "flask_session"
 os.makedirs(app.config["SESSION_FILE_DIR"], exist_ok=True)
 Session(app)
 
-database.init_db()
+asyncio.run(database.init_db())
 
 ADMINS = ("GundLutw", "AndeJaro")
 
@@ -78,7 +79,7 @@ def service_worker():
 
 
 @app.route("/login", methods=["GET", "POST"])
-def login():
+async def login():
     if request.method == "POST":
         school = request.form["school"]
         server = request.form["server"]
@@ -87,7 +88,7 @@ def login():
 
         client = UntisClient(school, server, username)
         try:
-            client.login(username, password)
+            await client.login(username, password)
         except UntisError as e:
             flash(f"Login fehlgeschlagen: {e}")
             return redirect(url_for("login"))
@@ -110,11 +111,11 @@ def login():
 
 
 @app.route("/logout")
-def logout():
+async def logout():
     if session.get("untis_session"):
         client = UntisClient(session["untis_school"], session["untis_server"], session["untis_username"])
         client.session_id = session["untis_session"]
-        client.logout()
+        await client.logout()
     session.clear()
     return redirect(url_for("login"))
 
@@ -146,7 +147,7 @@ def push_vapid_public_key():
 
 
 @app.post("/api/push/subscribe")
-def push_subscribe():
+async def push_subscribe():
     unauthorized = require_login_json()
     if unauthorized:
         return unauthorized
@@ -165,7 +166,7 @@ def push_subscribe():
         for room in favorite_rooms
         if normalize_room_name(room) in ALLOWED_ROOM_NAMES
     ]
-    database.save_push_subscription(
+    await database.save_push_subscription(
         session["untis_username"],
         endpoint,
         p256dh,
@@ -179,7 +180,7 @@ def push_subscribe():
 
 
 @app.post("/api/push/unsubscribe")
-def push_unsubscribe():
+async def push_unsubscribe():
     unauthorized = require_login_json()
     if unauthorized:
         return unauthorized
@@ -187,12 +188,12 @@ def push_unsubscribe():
     endpoint = subscription.get("endpoint")
     if not isinstance(endpoint, str) or not endpoint:
         return jsonify(error="Endpoint fehlt."), 400
-    database.delete_push_subscription(session["untis_username"], endpoint)
+    await database.delete_push_subscription(session["untis_username"], endpoint)
     return jsonify(ok=True)
 
 
 @app.post("/api/push/favorites")
-def push_favorites():
+async def push_favorites():
     unauthorized = require_login_json()
     if unauthorized:
         return unauthorized
@@ -208,16 +209,16 @@ def push_favorites():
     subscription_endpoint = payload.get("endpoint")
     if not isinstance(subscription_endpoint, str) or not subscription_endpoint:
         return jsonify(error="Endpoint fehlt."), 400
-    database.update_push_subscription_favorites(
+    await database.update_push_subscription_favorites(
         session["untis_username"], subscription_endpoint, favorite_rooms
     )
     return jsonify(ok=True)
 
 
-def get_client_from_session():
+async def get_client_from_session():
     """Baut aus der Browser-Session einen UntisClient ohne Passwort auf."""
     if not session.get("created_at") or datetime.now(LOCAL_TIMEZONE) - datetime.fromisoformat(session["created_at"]) > timedelta(weeks=1):
-        database.delete_untis_password(session["untis_username"])
+        await database.delete_untis_password(session["untis_username"])
         session.clear()
         raise UntisError("not authenticated")
 
@@ -227,7 +228,7 @@ def get_client_from_session():
     return client
 
 
-def get_room_data(client):
+async def get_room_data(client):
     cache_key = (
         session["untis_school"],
         session["untis_server"],
@@ -244,8 +245,8 @@ def get_room_data(client):
             if cached and time.monotonic() - cached["created"] < ROOM_DATA_CACHE_SECONDS:
                 return cached["rooms"], cached["lessons"]
 
-        rooms = client.get_rooms()
-        lessons = client.get_full_timetable(day=get_local_date())
+        rooms = await client.get_rooms()
+        lessons = await client.get_full_timetable(day=get_local_date())
         with ROOM_DATA_CACHE_LOCK:
             ROOM_DATA_CACHE[cache_key] = {
                 "created": time.monotonic(),
@@ -256,13 +257,13 @@ def get_room_data(client):
 
 
 @app.route("/freie-räume")
-def free_rooms():
+async def free_rooms():
     if "untis_session" not in session:
         return redirect(url_for("login"))
 
     try:
-        client = get_client_from_session()
-        rooms, lessons = get_room_data(client)
+        client = await get_client_from_session()
+        rooms, lessons = await get_room_data(client)
     except UntisError as e:
         session.clear()
         flash(f"Fehler beim Abrufen der Daten: {e}")
@@ -277,7 +278,7 @@ def free_rooms():
         rooms, lessons, current_time
     )
     if lessons:
-        notify_free_favorite_rooms(session["untis_username"], free_room_names)
+        await notify_free_favorite_rooms(session["untis_username"], free_room_names)
 
     return render_template(
         "free_rooms.html",
@@ -291,7 +292,7 @@ def free_rooms():
 
 
 @app.route("/hausaufgaben", methods=["GET", "POST"])
-def homework():
+async def homework():
     if "untis_session" not in session:
         return redirect(url_for("login"))
 
@@ -329,11 +330,11 @@ def homework():
 
         due_date = due_date_value.isoformat() if due_date_value else None
         reminder = reminder_value.isoformat() if reminder_value else None
-        database.add_homework(username, subject, content, due_date, reminder)
+        await database.add_homework(username, subject, content, due_date, reminder)
         flash("Hausaufgabe hinzugefügt!")
         return redirect(url_for("homework"))
 
-    items = database.get_homework(username)
+    items = await database.get_homework(username)
     now, minimum_due_date, maximum_due_date, minimum_reminder = homework_date_limits()
     return render_template(
         "homework.html",
@@ -345,7 +346,7 @@ def homework():
     )
 
 
-def get_timetable(client, days):
+async def get_timetable(client, days):
     person_id = client.person_id
 
     cache_key = (
@@ -363,7 +364,7 @@ def get_timetable(client, days):
             if cached and time.monotonic() - cached["created"] < TIMETABLE_CACHE_SECONDS:
                 return cached["lessons"]
 
-        lessons = client.get_timetable_for_student(person_id, days=days)
+        lessons = await client.get_timetable_for_student(person_id, days=days)
         with TIMETABLE_CACHE_LOCK:
             TIMETABLE_CACHE[cache_key] = {
                 "created": time.monotonic(),
@@ -373,15 +374,15 @@ def get_timetable(client, days):
 
 
 @app.route("/stundenplan")
-def timetable():
+async def timetable():
     if "untis_session" not in session:
         return redirect(url_for("login"))
 
     today = get_local_date()
     timetable_dates = get_next_weekdays(today, 5)
     try:
-        client = get_client_from_session()
-        lessons = get_timetable(client, days=timetable_dates)
+        client = await get_client_from_session()
+        lessons = await get_timetable(client, days=timetable_dates)
     except UntisError as e:
         session.clear()
         flash(f"Fehler beim Abrufen der Daten: {e}")
@@ -403,7 +404,7 @@ def timetable():
         start_time = normalize_time(lesson.get("startTime", 0))
         end_time = normalize_time(lesson.get("endTime", 0))
 
-        element = client.get_lesson_details(lesson)
+        element = await client.get_lesson_details(lesson)
         details = element["blocks"][0][0]
         period = details["periods"][0]
         if not student:
@@ -483,14 +484,14 @@ def timetable():
 
 
 @app.route("/homework/<int:homework_id>/toggle", methods=["POST"])
-def toggle_homework(homework_id):
-    database.toggle_homework_done(homework_id, session["untis_username"])
+async def toggle_homework(homework_id):
+    await database.toggle_homework_done(homework_id, session["untis_username"])
     return redirect(url_for("homework"))
 
 
 @app.route("/homework/<int:homework_id>/delete", methods=["POST"])
-def delete_homework(homework_id):
-    database.delete_homework(homework_id, session["untis_username"])
+async def delete_homework(homework_id):
+    await database.delete_homework(homework_id, session["untis_username"])
     return redirect(url_for("homework"))
 
 
@@ -512,7 +513,7 @@ def send_database():
 
 
 @app.route("/api/game-score", methods=["POST"])
-def submit_game_score():
+async def submit_game_score():
     """Nimmt den aktuellen Punktestand des Freistunden-Jäger-Easter-Eggs entgegen
     und speichert ihn nur, wenn er der neue persönliche Highscore ist."""
     if "untis_session" not in session:
@@ -525,16 +526,16 @@ def submit_game_score():
         return jsonify({"error": "invalid score"}), 400
     if score < 0 or score != score:  # score != score -> NaN
         return jsonify({"error": "invalid score"}), 400
-    database.submit_game_score(session["untis_username"], score)
+    await database.submit_game_score(session["untis_username"], score)
     return jsonify({"ok": True})
 
 
 @app.route("/api/game-leaderboard")
-def game_leaderboard():
+async def game_leaderboard():
     if "untis_session" not in session:
         return jsonify({"error": "not logged in"}), 401
 
-    rows = database.get_leaderboard(limit=20)
+    rows = await database.get_leaderboard(limit=20)
     leaderboard = [
         {"username": row["username"], "score": row["high_score"]}
         for row in rows

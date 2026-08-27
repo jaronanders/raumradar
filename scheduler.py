@@ -8,6 +8,7 @@ und Push-Benachrichtigungen für bevorzugte Räume.
 import time
 import os
 import logging
+import asyncio
 
 from config import get_local_date, get_current_stunde_zeit, calculate_room_status
 import database
@@ -21,9 +22,9 @@ LESSON_INTERVAL_SECONDS = max(300, int(os.environ.get("LESSON_INTERVAL_SECONDS",
 TIMETABLE_INTERVAL_SECONDS = max(900, int(os.environ.get("TIMETABLE_INTERVAL_SECONDS", "1800")))
 
 
-def refresh_subscribed_users():
+async def refresh_subscribed_users():
     """Refresh each user's timetable and notify newly free favorite rooms."""
-    subscriptions = database.get_all_push_subscriptions()
+    subscriptions = await database.get_all_push_subscriptions()
     users = {}
     for subscription in subscriptions:
         key = (
@@ -43,15 +44,15 @@ def refresh_subscribed_users():
         client = UntisClient(school, server, username)
         client.session_id = session_id
         try:
-            rooms = client.get_rooms()
-            lessons = client.get_full_timetable(day=get_local_date())
+            rooms = await client.get_rooms()
+            lessons = await client.get_full_timetable(day=get_local_date())
             if not lessons:
                 LOGGER.warning("Keine Stundenplandaten für %s erhalten", username)
                 continue
             free_rooms, _occupied_rooms, _next_lessons, _total_rooms = calculate_room_status(
                 rooms, lessons, get_current_stunde_zeit()
             )
-            notify_free_favorite_rooms(username, free_rooms)
+            await notify_free_favorite_rooms(username, free_rooms)
             refreshed += 1
         except Exception as error:
             LOGGER.warning("Raum-Refresh für %s fehlgeschlagen: %s", username, error)
@@ -59,11 +60,11 @@ def refresh_subscribed_users():
     return refreshed
 
 
-def send_homework_reminders():
-    homeworks = database.get_all_homework_reminders()
+async def send_homework_reminders():
+    homeworks = await database.get_all_homework_reminders()
 
     for homework in homeworks:
-        notify_homework(homework)
+        await notify_homework(homework)
     return len(homeworks)
 
 
@@ -71,7 +72,7 @@ def run_room_scheduler():
     LOGGER.info("Raum-Scheduler gestartet, Intervall: %s Sekunden", ROOM_INTERVAL_SECONDS)
     while True:
         try:
-            refreshed = refresh_subscribed_users()
+            refreshed = asyncio.run(refresh_subscribed_users())
             LOGGER.info("Raum-Scheduler: %s Benutzer aktualisiert", refreshed)
         except Exception as error:
             LOGGER.exception("Unerwarteter Fehler im Raum Scheduler-Zyklus: %s", error)
@@ -83,7 +84,7 @@ def run_reminder_scheduler():
     LOGGER.info("Erinnerungen-Scheduler gestartet, Intervall: %s Sekunden", REMINDER_INTERVAL_SECONDS)
     while True:
         try:
-            reminders = send_homework_reminders()
+            reminders = asyncio.run(send_homework_reminders())
             LOGGER.info("Erinnerungen-Scheduler: %s Erinnerungen gesendet", reminders)
         except Exception as error:
             LOGGER.exception("Unerwarteter Fehler im Erinnerungen Scheduler-Zyklus: %s", error)

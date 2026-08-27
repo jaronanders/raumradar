@@ -8,7 +8,6 @@ und Stundenpläne abzufragen.
 
 import requests
 from datetime import date
-from concurrent.futures import ThreadPoolExecutor
 from database import update_push_subscription_session, save_untis_password, delete_untis_password, get_untis_password
 
 
@@ -38,7 +37,7 @@ class UntisClient:
         self.person_id = None
         self.person_type = 5
 
-    def _rpc(self, method, params, retry=True):
+    async def _rpc(self, method, params, retry=True):
         payload = {"id": "req", "method": method, "params": params, "jsonrpc": "2.0"}
         cookies = {"JSESSIONID": self.session_id} if self.session_id else {}
         resp = self.session.post(self.base_url, json=payload, cookies=cookies, timeout=15)
@@ -54,17 +53,17 @@ class UntisClient:
                 if self.username is None:
                     raise UntisError(message)
 
-                password = get_untis_password(self.username)
+                password = await get_untis_password(self.username)
 
-                self.login(self.username, password)
+                await self.login(self.username, password)
 
-                return self._rpc(method, params, retry=False)
+                return await self._rpc(method, params, retry=False)
 
             raise UntisError(message)
         return data["result"]
 
-    def login(self, username, password):
-        result = self._rpc("authenticate", {
+    async def login(self, username, password):
+        result = await self._rpc("authenticate", {
             "user": username,
             "password": password,
             "client": "RaumRadar",
@@ -74,43 +73,43 @@ class UntisClient:
         self.person_id = result.get("personId")
         self.person_type = result.get("personType", 5)
 
-        save_untis_password(username, password)
+        await save_untis_password(username, password)
 
         """When a user's session id expires, their room refresh does not work in the scheduler, therefore polling and their notifications stop working
         This updates the session id after re-authentication"""
-        update_push_subscription_session(username, result["sessionId"])
+        await update_push_subscription_session(username, result["sessionId"])
 
         return result
 
-    def logout(self):
+    async def logout(self):
         if self.username:
-            delete_untis_password(self.username)
+            await delete_untis_password(self.username)
         if self.session_id:
             try:
-                self._rpc("logout", {})
+                await self._rpc("logout", {})
             except UntisError:
                 pass
             self.session_id = None
 
-    def get_rooms(self):
+    async def get_rooms(self):
         """Gibt alle Räume der Schule zurück: [{id, name, longName}, ...]"""
-        return self._rpc("getRooms", {})
+        return await self._rpc("getRooms", {})
 
-    def get_klassen(self):
+    async def get_klassen(self):
         """Gibt alle Klassen der Schule zurück: [{id, name}, ...]"""
-        result = self._rpc("getKlassen", {})
+        result = await self._rpc("getKlassen", {})
         if isinstance(result, dict):
             return result.get("data") or result.get("klassen") or result.get("classes") or []
         return result
 
-    def get_timetable_for_student(self, student_id, days: list = None):
+    async def get_timetable_for_student(self, student_id, days: list = None):
         """Stundenplan eines einzelnen Schülers für einen oder mehrere Tage (default: heute)."""
         if not days:
             start = end = int(date.today().strftime("%Y%m%d"))
         else:
             start = int(days[0].strftime("%Y%m%d"))
             end = int(days[-1].strftime("%Y%m%d"))
-        result = self._rpc("getTimetable", {
+        result = await self._rpc("getTimetable", {
             "id": student_id,
             "type": 5,  # 5 = Schüler
             "startDate": start,
@@ -121,7 +120,7 @@ class UntisClient:
         return result
 
 
-    def get_lesson_details(self, lesson, retry=True):
+    async def get_lesson_details(self, lesson, retry=True):
         """Holt Detaildaten zu einer Unterrichtsstunde."""
         if not isinstance(lesson, dict) or lesson.get("id") is None:
             return {}
@@ -153,21 +152,21 @@ class UntisClient:
                 if self.username is None:
                     raise UntisError(message)
 
-                password = get_untis_password(self.username)
+                password = await get_untis_password(self.username)
 
-                self.login(self.username, password)
+                await self.login(self.username, password)
 
-                return self.get_lesson_details(lesson, retry=False)
+                return await self.get_lesson_details(lesson, retry=False)
 
             raise UntisError(message)
         return data.get("data", data)
 
 
-    def get_timetable_for_klasse(self, klasse_id, day=None):
+    async def get_timetable_for_klasse(self, klasse_id, day=None):
         """Stundenplan einer einzelnen Klasse für einen Tag (default: heute)."""
         day = day or date.today()
         day_int = int(day.strftime("%Y%m%d"))
-        result = self._rpc("getTimetable", {
+        result = await self._rpc("getTimetable", {
             "id": klasse_id,
             "type": 1,  # 1 = Klasse
             "startDate": day_int,
@@ -177,16 +176,16 @@ class UntisClient:
             return result.get("data") or result.get("timetable") or result.get("lessons") or []
         return result
 
-    def get_full_timetable(self, day=None):
+    async def get_full_timetable(self, day=None):
         """
         Holt den Stundenplan ALLER Klassen für einen Tag.
         Gibt eine flache Liste aller Unterrichtsstunden zurück.
         Achtung: das ist ein Aufruf pro Klasse -> kann bei vielen Klassen dauern.
         """
-        klassen = self.get_klassen()
-        def fetch_for_klasse(klasse):
+        klassen = await self.get_klassen()
+        async def fetch_for_klasse(klasse):
             try:
-                lessons = self.get_timetable_for_klasse(klasse["id"], day)
+                lessons = await self.get_timetable_for_klasse(klasse["id"], day)
                 for lesson in lessons:
                     lesson["_klasse_name"] = klasse.get("name")
                 return lessons
@@ -197,8 +196,9 @@ class UntisClient:
         # Die API-Anfragen warten überwiegend auf Netzwerkantworten. Parallel
         # ist die Laufzeit dadurch ungefähr die langsamste Einzelanfrage statt
         # der Summe aller Klassenanfragen.
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            lesson_groups = executor.map(fetch_for_klasse, klassen)
+        lesson_groups = []
+        for klasse in klassen:
+            lesson_groups.append(await fetch_for_klasse(klasse))
 
         all_lessons = []
         for lessons in lesson_groups:

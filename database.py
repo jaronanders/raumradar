@@ -7,7 +7,7 @@ Kein Server nötig -- die Datei raumradar.db wird automatisch angelegt.
 Leider wird die Datenbank im Moment immer bei neuen Updates zurückgesetzt, da sie nicht auf Render gespeichert bleibt.
 """
 
-import sqlite3
+import aiosqlite
 import json
 from pathlib import Path
 from datetime import datetime
@@ -17,15 +17,15 @@ from config import LOCAL_TIMEZONE
 DB_PATH = Path(__file__).parent / "raumradar.db"
 
 
-def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+async def get_connection():
+    conn = await aiosqlite.connect(DB_PATH)
+    conn.row_factory = aiosqlite.Row
     return conn
 
 
-def init_db():
-    conn = get_connection()
-    conn.execute("""
+async def init_db():
+    conn = await get_connection()
+    await conn.execute("""
         CREATE TABLE IF NOT EXISTS homework (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL,
@@ -37,20 +37,20 @@ def init_db():
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    conn.execute("""
+    await conn.execute("""
         CREATE TABLE IF NOT EXISTS game_scores (
             username TEXT PRIMARY KEY,
             high_score REAL NOT NULL DEFAULT 0,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    conn.execute("""
+    await conn.execute("""
         CREATE TABLE IF NOT EXISTS logins (
             username TEXT PRIMARY KEY NOT NULL,
             password TEXT NOT NULL
         )
     """)
-    conn.execute("""
+    await conn.execute("""
         CREATE TABLE IF NOT EXISTS push_subscriptions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL,
@@ -74,16 +74,16 @@ def init_db():
         ("untis_session", "TEXT"),
     ):
         try:
-            conn.execute(f"ALTER TABLE push_subscriptions ADD COLUMN {column_name} {definition}")
-        except sqlite3.OperationalError:
+            await conn.execute(f"ALTER TABLE push_subscriptions ADD COLUMN {column_name} {definition}")
+        except aiosqlite.OperationalError:
             pass
-    conn.commit()
-    conn.close()
+    await conn.commit()
+    await conn.close()
 
 
-def save_untis_password(username, password):
+async def save_untis_password(username, password):
     return ""
-    # conn = get_connection()
+    # conn = await get_connection()
     # conn.execute("""
     #     INSERT INTO logins (username, password) VALUES (?, ?)
     #     ON CONFLICT(username) DO UPDATE SET password = excluded.password
@@ -94,19 +94,19 @@ def save_untis_password(username, password):
     # conn.close()
 
 
-def delete_untis_password(username):
-    conn = get_connection()
-    conn.execute(
+async def delete_untis_password(username):
+    conn = await get_connection()
+    await conn.execute(
         "DELETE FROM logins WHERE username = ?",
         (username,)
     )
-    conn.commit()
-    conn.close()
+    await conn.commit()
+    await conn.close()
 
 
-def get_untis_password(username):
+async def get_untis_password(username):
     return ""
-    # conn = get_connection()
+    # conn = await get_connection()
     # row = conn.execute(
     #     "SELECT password FROM logins WHERE username = ?", (username,)
     # ).fetchone()
@@ -117,64 +117,68 @@ def get_untis_password(username):
     # return decrypt_password(row["password"])
 
 
-def add_homework(username, subject, content, due_date, reminder):
-    conn = get_connection()
-    conn.execute(
+async def add_homework(username, subject, content, due_date, reminder):
+    conn = await get_connection()
+    await conn.execute(
         "INSERT INTO homework (username, subject, content, due_date, reminder) VALUES (?, ?, ?, ?, ?)",
         (username, subject, content, due_date, reminder),
     )
-    conn.commit()
-    conn.close()
+    await conn.commit()
+    await conn.close()
 
 
-def get_homework(username):
-    conn = get_connection()
-    rows = conn.execute(
+async def get_homework(username):
+    conn = await get_connection()
+    cursor = await conn.execute(
         "SELECT * FROM homework WHERE username = ? ORDER BY due_date IS NULL, due_date ASC",
         (username,),
-    ).fetchall()
-    conn.close()
+    )
+    rows = await cursor.fetchall()
+    await cursor.close()
+    await conn.close()
     return rows
 
 
-def toggle_homework_done(homework_id, username):
-    conn = get_connection()
-    conn.execute(
+async def toggle_homework_done(homework_id, username):
+    conn = await get_connection()
+    await conn.execute(
         "UPDATE homework SET done = NOT done WHERE id = ? AND username = ?",
         (homework_id, username),
     )
-    conn.commit()
-    conn.close()
+    await conn.commit()
+    await conn.close()
 
 
-def delete_homework(homework_id, username):
-    conn = get_connection()
-    conn.execute("DELETE FROM homework WHERE id = ? AND username = ?", (homework_id, username))
-    conn.commit()
-    conn.close()
+async def delete_homework(homework_id, username):
+    conn = await get_connection()
+    await conn.execute("DELETE FROM homework WHERE id = ? AND username = ?", (homework_id, username))
+    await conn.commit()
+    await conn.close()
 
 
-def delete_reminder(homework_id, username):
-    conn = get_connection()
-    conn.execute("UPDATE homework SET reminder = NULL WHERE id = ? AND username = ?", (homework_id, username))
-    conn.commit()
-    conn.close()
+async def delete_reminder(homework_id, username):
+    conn = await get_connection()
+    await conn.execute("UPDATE homework SET reminder = NULL WHERE id = ? AND username = ?", (homework_id, username))
+    await conn.commit()
+    await conn.close()
 
-def get_all_homework_reminders():
-    conn = get_connection()
-    rows = conn.execute(
+async def get_all_homework_reminders():
+    conn = await get_connection()
+    cursor = await conn.execute(
         """
         SELECT id, username, subject, content, due_date
         FROM homework
         WHERE done = FALSE AND reminder <= ?
         """,
         (datetime.now(LOCAL_TIMEZONE).isoformat(),)
-    ).fetchall()
-    conn.close()
+    )
+    rows = await cursor.fetchall()
+    await cursor.close()
+    await conn.close()
     return rows
 
 
-def save_push_subscription(
+async def save_push_subscription(
     username,
     endpoint,
     p256dh,
@@ -184,9 +188,9 @@ def save_push_subscription(
     untis_server=None,
     untis_session=None,
 ):
-    conn = get_connection()
+    conn = await get_connection()
     favorite_rooms_json = json.dumps(sorted(set(favorite_rooms or [])))
-    conn.execute(
+    await conn.execute(
         """
         INSERT INTO push_subscriptions
             (username, endpoint, p256dh, auth, favorite_rooms, untis_school, untis_server, untis_session)
@@ -212,36 +216,36 @@ def save_push_subscription(
             untis_session,
         ),
     )
-    conn.commit()
-    conn.close()
+    await conn.commit()
+    await conn.close()
 
 
-def update_push_subscription_session(username, session_id):
-    conn = get_connection()
-    conn.execute(
+async def update_push_subscription_session(username, session_id):
+    conn = await get_connection()
+    await conn.execute(
         """
         UPDATE push_subscriptions SET untis_session = ?
         WHERE username = ?
         """,
         (session_id, username),
     )
-    conn.commit()
-    conn.close()
+    await conn.commit()
+    await conn.close()
 
 
-def delete_push_subscription(username, endpoint):
-    conn = get_connection()
-    conn.execute(
+async def delete_push_subscription(username, endpoint):
+    conn = await get_connection()
+    await conn.execute(
         "DELETE FROM push_subscriptions WHERE username = ? AND endpoint = ?",
         (username, endpoint),
     )
-    conn.commit()
-    conn.close()
+    await conn.commit()
+    await conn.close()
 
 
-def update_push_subscription_favorites(username, endpoint, favorite_rooms):
-    conn = get_connection()
-    conn.execute(
+async def update_push_subscription_favorites(username, endpoint, favorite_rooms):
+    conn = await get_connection()
+    await conn.execute(
         """
         UPDATE push_subscriptions
         SET favorite_rooms = ?, updated_at = CURRENT_TIMESTAMP
@@ -249,40 +253,44 @@ def update_push_subscription_favorites(username, endpoint, favorite_rooms):
         """,
         (json.dumps(sorted(set(favorite_rooms))), username, endpoint),
     )
-    conn.commit()
-    conn.close()
+    await conn.commit()
+    await conn.close()
 
 
-def get_push_subscriptions(username):
-    conn = get_connection()
-    rows = conn.execute(
+async def get_push_subscriptions(username):
+    conn = await get_connection()
+    cursor = await conn.execute(
         """
          SELECT endpoint, p256dh, auth, favorite_rooms, last_notified_free_rooms,
              untis_school, untis_server, untis_session
         FROM push_subscriptions WHERE username = ?
         """,
         (username,),
-    ).fetchall()
-    conn.close()
+    )
+    rows = await cursor.fetchall()
+    await cursor.close()
+    await conn.close()
     return rows
 
 
-def get_all_push_subscriptions():
-    conn = get_connection()
-    rows = conn.execute(
+async def get_all_push_subscriptions():
+    conn = await get_connection()
+    cursor = await conn.execute(
         """
         SELECT username, endpoint, p256dh, auth, favorite_rooms, last_notified_free_rooms,
                untis_school, untis_server, untis_session
         FROM push_subscriptions
         """
-    ).fetchall()
-    conn.close()
+    )
+    rows = await cursor.fetchall()
+    await cursor.close()
+    await conn.close()
     return rows
 
 
-def update_push_subscription_notification_state(endpoint, free_rooms):
-    conn = get_connection()
-    conn.execute(
+async def update_push_subscription_notification_state(endpoint, free_rooms):
+    conn = await get_connection()
+    await conn.execute(
         """
         UPDATE push_subscriptions
         SET last_notified_free_rooms = ?, updated_at = CURRENT_TIMESTAMP
@@ -290,14 +298,14 @@ def update_push_subscription_notification_state(endpoint, free_rooms):
         """,
         (json.dumps(sorted(set(free_rooms))), endpoint),
     )
-    conn.commit()
-    conn.close()
+    await conn.commit()
+    await conn.close()
 
 
-def submit_game_score(username, score):
+async def submit_game_score(username, score):
     """Speichert den Score nur, wenn er höher als der bisherige Highscore ist."""
-    conn = get_connection()
-    conn.execute(
+    conn = await get_connection()
+    await conn.execute(
         """
         INSERT INTO game_scores (username, high_score, updated_at)
         VALUES (?, ?, CURRENT_TIMESTAMP)
@@ -311,15 +319,17 @@ def submit_game_score(username, score):
         """,
         (username, score),
     )
-    conn.commit()
-    conn.close()
+    await conn.commit()
+    await conn.close()
 
 
-def get_leaderboard(limit=20):
-    conn = get_connection()
-    rows = conn.execute(
+async def get_leaderboard(limit=20):
+    conn = await get_connection()
+    cursor = await conn.execute(
         "SELECT username, high_score FROM game_scores ORDER BY high_score DESC, updated_at ASC LIMIT ?",
         (limit,),
-    ).fetchall()
-    conn.close()
+    )
+    rows = await cursor.fetchall()
+    await cursor.close()
+    await conn.close()
     return rows

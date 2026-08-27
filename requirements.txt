@@ -1,6 +1,7 @@
-Flask==3.0.3
+Flask==3.1.3
 Flask-Session==0.8.0
 requests==2.32.3
+aiosqlite==0.22.1
 gunicorn==23.0.0
 pywebpush==2.0.0
 tzdata==2025.2
