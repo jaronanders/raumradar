@@ -67,7 +67,7 @@ werden.
 - ✅ Freie Räume für die aktuelle Uhrzeit berechnen (heutiger Tag) -> Pausen werden übersprungen
 - ✅ Hausaufgaben/Notizen anlegen, erledigt markieren, löschen (lokal gespeichert in `raumradar.db`)
 - ✅ Stundenplan für die nächsten 5 Tage anzeigen
-#✅ Browser-Push-Abonnements speichern und Benachrichtigungen über VAPID versenden
+# ✅ Browser-Push-Abonnements speichern und Benachrichtigungen über VAPID versenden
 - ✅ Push-Benachrichtigungen für Hausaufgaben-Fristen
 
 ## Push-Benachrichtigungen einrichten
