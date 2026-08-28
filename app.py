@@ -35,7 +35,7 @@ app = Flask(__name__)
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per 5 minutes"]
+    default_limits=["200 per 5 minutes", "500 per hour", "1000 per day"]
 )
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config["SESSION_TYPE"] = "filesystem"
@@ -74,7 +74,8 @@ def format_homework_date(value, include_time=False):
 
 @app.before_request
 def maintenance_check():
-    if (app.config["MAINTENANCE_MODE"] and not request.path.startswith("/static/") and request.path not in ("/maintenance", "/impressum", "/datenschutzerklärung")):
+    if (app.config["MAINTENANCE_MODE"] and not request.path.startswith("/static/") and request.path not in
+        ("/maintenance", "/database", "/login", "/impressum", "/datenschutzerklärung")):
         if session:
             session.clear()
 

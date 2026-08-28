@@ -15,7 +15,7 @@ ALLOWED_ROOM_NAMES = {
     "A11", "B01", "B02", "B03", "B04", "B05", "E01", "E03", "E27", "E29",
     "E31",
 }
-BREAKS = ((830, 840), (940, 1000), (1100, 1110), (1250, 1300), (1400, 1410))
+BREAKS = ((830, 840), (940, 1000), (1100, 1110), (1210, 1300), (1400, 1410))
 BELEGTE_RAEUME_MITTAGSPAUSE = [
     {"138"}, # Junior-SV
     {"138"}, # SV
@@ -88,7 +88,7 @@ def calculate_room_status(rooms, lessons, current_time):
             occupied_room_names.update(lesson_room_names(lesson, room_names_by_id))
 
     now = datetime.now(LOCAL_TIMEZONE).time()
-    if uhrzeit(12, 10) <= now < uhrzeit(13, 0):
+    if uhrzeit(12, 10) <= now < uhrzeit(12, 50):
         occupied_room_names.update(BELEGTE_RAEUME_MITTAGSPAUSE[date.today().weekday()])
 
     allowed_room_names = {normalize_room_name(room_name) for room_name in ALLOWED_ROOM_NAMES}
