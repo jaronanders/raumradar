@@ -23,6 +23,8 @@ logging.basicConfig(level=logging.INFO)
 
 from flask import Flask, jsonify, render_template, request, redirect, url_for, send_file, session, flash, abort
 from flask_session import Session
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from untis_client import UntisClient, UntisError
 import database
@@ -30,9 +32,15 @@ from notifications import notify_free_favorite_rooms
 from scheduler import run_reminder_scheduler, run_room_scheduler, run_lesson_scheduler, run_timetable_scheduler
 
 app = Flask(__name__)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per 5 minutes"]
+)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_FILE_DIR"] = os.path.join(app.instance_path, "flask_session")
+app.config["MAINTENANCE_MODE"] = (os.getenv("MAINTENANCE_MODE", "false").lower() == "true")
 os.makedirs(app.config["SESSION_FILE_DIR"], exist_ok=True)
 Session(app)
 
@@ -62,6 +70,20 @@ def format_homework_date(value, include_time=False):
     except (TypeError, ValueError):
         return value
     return parsed_value.strftime("%d.%m.%y %H:%M Uhr" if include_time else "%d.%m.%y")
+
+
+@app.before_request
+def maintenance_check():
+    if (app.config["MAINTENANCE_MODE"] and not request.path.startswith("/static/") and request.path not in ("/maintenance", "/impressum", "/datenschutzerklärung")):
+        if session:
+            session.clear()
+
+        return render_template("maintenance.html"), 503
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template("404.html"), 404
 
 
 @app.route("/")
@@ -372,7 +394,6 @@ async def get_timetable(client, days):
             }
         return lessons
 
-
 @app.route("/stundenplan")
 async def timetable():
     if "untis_session" not in session:
@@ -410,8 +431,19 @@ async def timetable():
         if not student:
             student = element.get("elementName")
         subject = details["subjectNameLong"] if details.get("subjectNameLong") and len(details["subjectNameLong"]) <= 15 else details.get("subjectName")
-        info = (inf if (inf := details.get("lessonInfo")) and len(inf) < 35 else inf[:32] + "..." if inf else None)
-        substitute_text = (subst_text if (subst_text := period.get("substText")) and len(subst_text) < 13 else None)
+        student_info = (details.get("periodInfo") or {}).get("text") or ""
+        full_info = details.get("lessonInfo") or ""
+        info = (
+            full_info
+            if len(full_info) < 35
+            else full_info[:32] + "..."
+        ) if full_info else None
+        full_substitute_text = period.get("substText") or ""
+        substitute_text = (
+            full_substitute_text
+            if len(full_substitute_text) < 13
+            else full_substitute_text[:10] + "..."
+        ) if full_substitute_text else None
 
         rooms = period.get("rooms")
         teachers = [teacher["name"] for teacher in period.get("teachers")]
@@ -427,10 +459,11 @@ async def timetable():
                     "new_room": cur_room.get("name") or ""
                 })
 
-        if substitute_text or room_changes:
+        if full_substitute_text or room_changes:
 
             substitution = {
                 "text": substitute_text,
+                "full_text": full_substitute_text,
                 "original_room": ", ".join(change["original_room"] for change in room_changes),
                 "new_room": ", ".join(change["new_room"] for change in room_changes)
             }
@@ -461,9 +494,16 @@ async def timetable():
             "teacher": ", ".join(teachers),
             "status": status,
             "info": info or "",
+            "full_info": full_info,
+            "student_info": student_info,
             "substitution": substitution
         })
 
+    time_slots = sorted({
+        (lesson["start"], lesson["end"])
+        for day_lessons in timetable_days.values()
+        for lesson in day_lessons
+    })
     for day_lessons in timetable_days.values():
         day_lessons.sort(key=lambda lesson: (lesson["start"], lesson["subject"]))
 
@@ -472,6 +512,20 @@ async def timetable():
             "date": WEEKDAYS[date.fromisoformat(day).weekday()],
             "is_today": day == today.isoformat(),
             "lessons": day_lessons,
+            "rows": [
+                {
+                    "start": start,
+                    "end": end,
+                    "lesson": next(
+                        (
+                            lesson for lesson in day_lessons
+                            if lesson["start"] == start and lesson["end"] == end
+                        ),
+                        None,
+                    ),
+                }
+                for start, end in time_slots
+            ],
         }
         for day, day_lessons in sorted(timetable_days.items())
     ]
@@ -479,6 +533,7 @@ async def timetable():
         "timetable.html",
         student=student,
         timetable_days=timetable_days,
+        time_slots=time_slots,
         timetable_date=f"{WEEKDAYS[today.weekday()]}, " + today.strftime("%d.%m.%Y"),
     )
 
@@ -510,6 +565,18 @@ def send_database():
         return jsonify({
             "error": "Database file not found"
         }), 404
+
+
+@app.route("/maintenance")
+def toggle_maintenance():
+    if "untis_session" not in session:
+        return redirect(url_for("login"))
+
+    if session["untis_username"] not in ADMINS:
+        abort(403)
+
+    app.config["MAINTENANCE_MODE"] = not app.config["MAINTENANCE_MODE"]
+    return jsonify({"maintenance": app.config["MAINTENANCE_MODE"]}), 200
 
 
 @app.route("/api/game-score", methods=["POST"])

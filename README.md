@@ -46,21 +46,14 @@ gunicorn app:app
 Für Push-Benachrichtigungen bei geschlossenem Browser muss zusätzlich der
 Hintergrund-Scheduler dauerhaft laufen:
 
-```text
-python scheduler.py
-```
-
-Bei einem direkten Start mit `python app.py` ist dieser separate Befehl nicht
-nötig. Der separate Worker ist für Produktionsplattformen gedacht, die Web- und
-Hintergrundprozesse getrennt verwalten.
-
 Der Scheduler aktualisiert alle Nutzer mit einem gespeicherten Untis-Login und
-prüft ihre favorisierten Räume. Das Intervall ist standardmäßig 120 Sekunden
-und kann mit `SCHEDULER_INTERVAL_SECONDS` angepasst werden. Auf Plattformen mit
-separaten Worker-Prozessen entspricht der Prozessname `scheduler` dem Eintrag
-im `Procfile`. Der Scheduler speichert keine Passwörter und kann nur eine noch
-gültige Untis-Session wiederverwenden; nach Ablauf muss sich der Nutzer erneut
-einloggen und Push wieder aktivieren.
+prüft ihre favorisierten Räume und ihren Stundenplan und versendet Erinnerungen
+für Hausaufgaben.
+Das Intervall ist standardmäßig 120 Sekunden und kann mit `SCHEDULER_INTERVAL_SECONDS`
+angepasst werden. Der Scheduler speichert keine Passwörter und kann nur eine noch
+gültige Untis-Session wiederverwenden; nach Ablauf wird der Nutzer mit gespeicherten
+Anmeldedaten automatisch wieder eingeloggt, falls keine gespeichert sind muss sich
+der Nutzer erneut einloggen und Push wieder aktivieren.
 
 Im Hosting-Dienst muss die Umgebungsvariable `SECRET_KEY` auf einen langen,
 zufälligen Wert gesetzt werden. Nach dem ersten Aufruf kann die Seite auf dem
@@ -71,9 +64,11 @@ werden.
 ## Was funktioniert schon
 
 - ✅ Login gegen die echte WebUntis-API
-- ✅ Freie Räume für die aktuelle Uhrzeit berechnen (heutiger Tag)
+- ✅ Freie Räume für die aktuelle Uhrzeit berechnen (heutiger Tag) -> Pausen werden übersprungen
 - ✅ Hausaufgaben/Notizen anlegen, erledigt markieren, löschen (lokal gespeichert in `raumradar.db`)
-- ✅ Browser-Push-Abonnements speichern und Benachrichtigungen über VAPID versenden
+- ✅ Stundenplan für die nächsten 5 Tage anzeigen
+✅ **Browser-Push-Abonnements speichern und Benachrichtigungen über VAPID versenden**
+- ✅ Push-Benachrichtigungen für Hausaufgaben-Fristen
 
 ## Push-Benachrichtigungen einrichten
 
@@ -107,18 +102,14 @@ dauerhaft pollt.
 
 ## Was noch fehlt (nächste Schritte)
 
-- ❌ Push-Benachrichtigungen bei Stundenausfall (braucht einen dauerhaft laufenden Server, der
-  regelmäßig pollt – aktuell holt die App die Daten nur, wenn du die Seite aufrufst)
-- ❌ Push-Benachrichtigungen für Hausaufgaben-Fristen
+- ❌ Push-Benachrichtigungen bei Stundenausfall
 - ❌ Raum-Claim-Feature (Abo)
 - ❌ Echte mobile App (das hier ist eine Webanwendung – für iOS/Android bräuchte man
   React Native/Flutter, oder man packt diese Web-App später als PWA)
-- ❌ Mehrtägige Ansicht des Stundenplans (aktuell nur "heute")
 
-## To Do
+## Was man noch ändern könnte
 
 - Von Flask auf FastAPI o. ä. wechseln
-- Falls Performance nicht ausreicht, auf async Syntax umsteigen (asyncio, aiosqlite, ...)
 
 ## Wichtiger Sicherheitshinweis
 
@@ -136,5 +127,3 @@ Am wahrscheinlichsten:
   alle Klassen zu sehen (das hattest du aber schon als "geht bei uns" bestätigt)
 - **`ModuleNotFoundError`** → `pip install -r requirements.txt` nochmal ausführen,
   ggf. mit `pip3` statt `pip`
-
-Meld dich einfach mit der genauen Fehlermeldung, dann schauen wir uns das zusammen an.

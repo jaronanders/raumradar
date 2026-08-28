@@ -4,23 +4,49 @@
 <p>{% if student %}{{ student }}<br>{% endif %}
 {{ timetable_date }}</p>
 
-<section class="timetable-week" aria-label="Stundenplan für mehrere Tage">
+<section class="timetable-layout" data-slot-count="{{ time_slots|length }}">
+	<aside class="timetable-times" aria-label="Unterrichtszeiten">
+		<div class="timetable-time-header"></div>
+		{% for start, end in time_slots %}
+			<span class="timetable-slot-time" aria-label="{{ start }} bis {{ end }} Uhr">
+				<span aria-hidden="true">{{ start }}</span>
+				<span aria-hidden="true">{{ end }}</span>
+			</span>
+		{% endfor %}
+	</aside>
+	<section class="timetable-week" aria-label="Stundenplan für mehrere Tage">
 	{% for day in timetable_days %}
 	<div class="timetable-day">
 		<h3>{% if day.is_today %}Heute{% else %}{{ day.date }}{% endif %}</h3>
-		{% for lesson in day.lessons %}
-			<article class="timetable-card{% if lesson.status == 'vorbei' %} is-past{% elif lesson.status == 'läuft gerade' %} is-current{% elif lesson.status == 'geändert' %} is-changed{% elif lesson.status == 'ausgefallen' %} is-cancelled{% endif %}">
+		{% for row in day.rows %}
+			{% if row.lesson %}{% set lesson = row.lesson %}
+			<button type="button" class="timetable-card{% if lesson.status == 'vorbei' %} is-past{% elif lesson.status == 'läuft gerade' %} is-current{% elif lesson.status == 'geändert' %} is-changed{% elif lesson.status == 'ausgefallen' %} is-cancelled{% endif %}" data-lesson='{{ lesson|tojson }}'>
 				<strong class="timetable-card-subject">{{ lesson.subject }}</strong>
-				<span class="timetable-card-time">{{ lesson.start }}–{{ lesson.end }} Uhr</span>
 				<span class="timetable-meta">{% if lesson.room %}Raum {% if lesson.substitution and lesson.substitution.original_room %}<s>{{ lesson.substitution.original_room }}</s> → <b>{{ lesson.substitution.new_room }}</b>{% else %}{{ lesson.room }}{% endif %}{% else %}Kein Raum</span>{% endif %}
 				<span class="timetable-meta">{% if lesson.teacher %}{{ lesson.teacher }}{% else %}Kein Lehrer</span>{% endif %}
-				{% if lesson.info %}<span class="timetable-meta timetable-info"><img src="{{ url_for('static', filename='info.svg') }}" alt="Info">{{ lesson.info }}</span>{% endif %}
+				{% if lesson.info or lesson.student_info %}<span class="timetable-meta timetable-info"><img src="{{ url_for('static', filename='info.svg') }}" alt="Info">{{ lesson.info or "Notizen" }}</span>{% endif %}
 				{% if lesson.status %}{% if lesson.substitution and lesson.substitution.text %}<span class="timetable-status {{ lesson.status|replace(' ', '-') }}">{{ lesson.substitution.text }}</span>{% else%}<span class="timetable-status {{ lesson.status|replace(' ', '-') }}">{{ lesson.status }}</span>{% endif %}{% endif %}
-			</article>
-		{% else %}
-			<p class="timetable-empty">Keine Unterrichtsstunden</p>
+			</button>
+			{% else %}<div class="timetable-empty-slot" aria-hidden="true"></div>{% endif %}
 		{% endfor %}
 	</div>
 	{% endfor %}
+	</section>
 </section>
+
+<dialog id="lesson-details-dialog" class="lesson-details-dialog" aria-labelledby="lesson-details-title">
+	<div class="lesson-details-header">
+		<h3 id="lesson-details-title">Unterrichtsstunde</h3>
+		<button type="button" class="lesson-details-close" aria-label="Details schließen">&times;</button>
+	</div>
+	<dl class="lesson-details-list">
+		<div><dt>Zeit</dt><dd id="lesson-details-time"></dd></div>
+		<div><dt>Raum</dt><dd id="lesson-details-room"></dd></div>
+		<div><dt>Lehrkraft</dt><dd id="lesson-details-teacher"></dd></div>
+		<div id="lesson-details-info-row"><dt>Informationen zur Stunde</dt><dd id="lesson-details-info"></dd></div>
+		<div id="lesson-details-student-info-row"><dt>Notizen für Schüler</dt><dd id="lesson-details-student-info"></dd></div>
+		<div id="lesson-details-substitution-text-row"><dt>Vertretungstext</dt><dd id="lesson-details-substitution-text"></dd></div>
+	</dl>
+</dialog>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='timetable.js') }}" defer></script>{% endblock %}

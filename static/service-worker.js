@@ -1,4 +1,4 @@
-const STATIC_CACHE = "raumradar-static-v1";
+const STATIC_CACHE = "raumradar-static-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));

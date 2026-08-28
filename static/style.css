@@ -6,6 +6,7 @@
     --mint: #e8f2ff;
     --blue-glow: #5ac8fa;
     --blue-soft: #dceeff;
+    --warn: #ffad33;
     --coral: #ff375f;
     --bg: #f5f5f7;
     --white: #ffffff;
@@ -431,20 +432,40 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     box-shadow: none;
 }
 
+.timetable-layout {
+    --slot-height: 9rem;
+    --header-height: 2.2rem;
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: start;
+}
+.timetable-times,
+.timetable-day {
+    display: grid;
+    grid-template-rows: var(--header-height) repeat(var(--slot-count, 1), var(--slot-height));
+    gap: 0.45rem;
+}
+.timetable-times {
+    padding-top: 0.65rem;
+}
+.timetable-time-header {
+    min-height: var(--header-height);
+}
 .timetable-week {
     display: grid;
-    grid-template-columns: repeat(5, minmax(160px, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(5, minmax(130px, 1fr));
+    gap: 0.55rem;
     overflow-x: auto;
     align-items: start;
 }
 .timetable-day {
-    min-width: 160px;
+    min-width: 130px;
     background: #eef1ef;
     padding: 0.65rem;
     border-radius: 8px;
 }
-.timetable-day h3 { margin: 0 0 0.65rem; }
+.timetable-day h3 { margin: 0; }
 .timetable-day h3 small {
     display: block;
     color: #666;
@@ -452,15 +473,29 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     font-weight: normal;
 }
 .timetable-card {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    font-weight: normal;
+    color: var(--navy);
     background: white;
-    padding: 0.7rem;
-    margin-bottom: 0.6rem;
+    padding: 0.5rem;
+    margin: 0;
     border-left: 4px solid var(--teal);
     border-radius: 5px;
+    cursor: pointer;
+    box-shadow: none;
+    height: var(--slot-height);
+    overflow: hidden;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
+.timetable-card:hover,
+.timetable-card:focus-visible { transform: translateY(-2px); box-shadow: 0 5px 14px rgba(30, 33, 64, 0.14); }
+.timetable-card:focus-visible { outline: 3px solid var(--blue-glow); outline-offset: 2px; }
 .timetable-card.is-past { opacity: 0.5; border-left-color: #999; }
 .timetable-card.is-current { border-left-color: var(--blue-glow); }
-.timetable-card.is-changed { border-left-color: #ffd633; }
+.timetable-card.is-changed { border-left-color: var(--warn); }
 .timetable-card.is-cancelled { opacity: 0.5; border-left-color: var(--coral); }
 .timetable-card-subject,
 .timetable-card-time,
@@ -477,6 +512,9 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     display: flex;
     align-items: center;
     gap: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .timetable-info img {
     flex: 0 0 auto;
@@ -488,12 +526,32 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     color: var(--teal);
     font-size: 0.8rem;
     font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .timetable-status.vorbei { color: #888; }
 .timetable-status.läuft-gerade { color: var(--blue-glow); }
-.timetable-status.geändert {color: #ffd633}
+.timetable-status.geändert {color: var(--warn)}
 .timetable-status.ausgefallen {color: var(--coral)}
 .timetable-empty { color: #666; font-size: 0.85rem; }
+
+.lesson-details-dialog {
+    width: min(32rem, calc(100% - 2rem));
+    border: 0;
+    border-radius: 10px;
+    padding: 1.25rem;
+    color: var(--navy);
+    box-shadow: 0 18px 50px rgba(30, 33, 64, 0.28);
+}
+.lesson-details-dialog::backdrop { background: rgba(30, 33, 64, 0.48); }
+.lesson-details-header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+.lesson-details-header h3 { margin: 0; }
+.lesson-details-close { border: 0; background: transparent; color: #666; padding: 0; font-size: 1.6rem; line-height: 1; cursor: pointer; box-shadow: none; }
+.lesson-details-list { margin: 1rem 0 0; }
+.lesson-details-list div { padding: 0.6rem 0; border-top: 1px solid #e4e7e5; }
+.lesson-details-list dt { color: #666; font-size: 0.8rem; }
+.lesson-details-list dd { margin: 0.15rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .homework-list { list-style: none; padding: 0; }
 .homework-list li {
@@ -535,4 +593,27 @@ button:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 
     .login-loading { padding: 1rem; }
     .login-loading-card { width: min(100%, 320px); padding: 1.7rem 1.2rem; border-radius: 24px; }
     .radar { width: 118px; height: 118px; }
+    .timetable-layout { --slot-height: 6.75rem; --header-height: 2rem; gap: 0.35rem; }
+    .timetable-week { grid-template-columns: repeat(5, minmax(105px, 1fr)); gap: 0.35rem; }
+    .timetable-day { min-width: 105px; gap: 0.35rem; }
+    .timetable-card { padding: 0.45rem; font-size: 0.78rem; }
+    .timetable-card-subject { font-size: 0.82rem; }
+    .timetable-meta { font-size: 0.7rem; margin-top: 0.1rem; }
+    .timetable-status { font-size: 0.68rem; margin-top: 0.2rem; }
+    .timetable-info img { width: 0.8rem; height: 0.8rem; }
+    .timetable-slot-time { font-size: 0.68rem; padding: 0.55rem 0; }
 }
+.timetable-slot-time {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    align-self: start;
+    height: 100%;
+    padding: 0.65rem 0;
+    color: #666;
+    font-size: 0.78rem;
+    font-weight: bold;
+    line-height: 1.35;
+}
+.timetable-empty-slot { min-height: var(--slot-height); }
