@@ -120,22 +120,18 @@ class UntisClient:
         return result
 
 
-    async def get_lesson_details(self, lesson, retry=True):
+    async def get_lesson_details(self, date, retry=True):
         """Holt Detaildaten zu einer Unterrichtsstunde."""
-        if not isinstance(lesson, dict) or lesson.get("id") is None:
-            return {}
 
         response = self.session.get(
             f"https://{self.server}/WebUntis/api/public/period/info",
             params={
                 "school": self.school,
-                "date": lesson.get("date"),
-                "starttime": lesson.get("startTime"),
-                "endtime": lesson.get("endTime"),
+                "date": date,
+                "starttime": 0,
+                "endtime": 2359,
                 "elemid": self.person_id,
-                "elemtype": self.person_type,
-                "ttFmtId": 1,
-                "selectedPeriodId": lesson["id"],
+                "elemtype": self.person_type
             },
             cookies={"JSESSIONID": self.session_id} if self.session_id else {},
             timeout=15,
@@ -156,7 +152,7 @@ class UntisClient:
 
                 await self.login(self.username, password)
 
-                return await self.get_lesson_details(lesson, retry=False)
+                return await self.get_lesson_details(date, retry=False)
 
             raise UntisError(message)
         return data.get("data", data)

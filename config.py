@@ -88,7 +88,7 @@ def calculate_room_status(rooms, lessons, current_time):
             occupied_room_names.update(lesson_room_names(lesson, room_names_by_id))
 
     now = datetime.now(LOCAL_TIMEZONE).time()
-    if uhrzeit(12, 10) <= now < uhrzeit(12, 50):
+    if uhrzeit(12, 10) <= now < uhrzeit(12, 50) and date.today().weekday() < 5:
         occupied_room_names.update(BELEGTE_RAEUME_MITTAGSPAUSE[date.today().weekday()])
 
     allowed_room_names = {normalize_room_name(room_name) for room_name in ALLOWED_ROOM_NAMES}

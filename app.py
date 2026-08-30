@@ -369,31 +369,126 @@ async def homework():
     )
 
 
-async def get_timetable(client, days):
+async def get_timetable(client, timetable_dates, days, today=get_local_date()):
     person_id = client.person_id
 
     cache_key = (
         person_id,
-        get_local_date(),
+        today,
     )
     with TIMETABLE_CACHE_LOCK:
         cached = TIMETABLE_CACHE.get(cache_key)
         if cached and time.monotonic() - cached["created"] < TIMETABLE_CACHE_SECONDS:
-            return cached["lessons"]
+            return cached["student"], cached["timetable_days"]
 
     with TIMETABLE_REFRESH_LOCK:
         with TIMETABLE_CACHE_LOCK:
             cached = TIMETABLE_CACHE.get(cache_key)
             if cached and time.monotonic() - cached["created"] < TIMETABLE_CACHE_SECONDS:
-                return cached["lessons"]
+                return cached["student"], cached["timetable_days"]
 
-        lessons = await client.get_timetable_for_student(person_id, days=days)
+        student, timetable_days = await build_timetable(client, timetable_dates, days, today)
         with TIMETABLE_CACHE_LOCK:
             TIMETABLE_CACHE[cache_key] = {
                 "created": time.monotonic(),
-                "lessons": lessons,
+                "student": student,
+                "timetable_days": timetable_days
             }
-        return lessons
+        return student, timetable_days
+
+
+async def build_timetable(client, timetable_dates, timetable_days, today):
+    student = None
+    current_time = get_current_stunde_zeit()
+    
+    for timetable_date in timetable_dates:
+        lessons = await client.get_lesson_details(timetable_date.strftime("%Y%m%d"))
+
+        if not student:
+            student = lessons.get("elementName")
+        for block in lessons["blocks"]:
+            lesson = block[0]
+
+            if not isinstance(lesson, dict):
+                continue
+            if timetable_date.weekday() >= 5:
+                continue
+            lesson_date = timetable_date.isoformat()
+
+            period = lesson["periods"][0]
+            start_time = normalize_time(period.get("startTime", 0))
+            end_time = normalize_time(period.get("endTime", 0))
+            subject = lesson["subjectNameLong"] if lesson.get("subjectNameLong") and len(lesson["subjectNameLong"]) <= 15 else lesson.get("subjectName")
+            student_info = (lesson.get("periodInfo") or {}).get("text") or ""
+            full_info = lesson.get("lessonInfo") or ""
+            info = (
+                full_info
+                if len(full_info) < 35
+                else full_info[:32] + "..."
+            ) if full_info else None
+            full_substitute_text = period.get("substText") or ""
+            substitute_text = (
+                full_substitute_text
+                if len(full_substitute_text) < 13
+                else full_substitute_text[:10] + "..."
+            ) if full_substitute_text else None
+
+            rooms = period.get("rooms")
+            teachers = [teacher["name"] for teacher in period.get("teachers")]
+
+            room_changes = []
+            for substitution in lesson.get("roomSubstitutions", []):
+                org_room = substitution.get("orgRoom")
+                cur_room = substitution.get("curRoom")
+
+                if org_room and cur_room and org_room.get("id") != cur_room.get("id"):
+                    room_changes.append({
+                        "original_room": org_room.get("name") or "",
+                        "new_room": cur_room.get("name") or ""
+                    })
+
+            if full_substitute_text or room_changes:
+
+                substitution = {
+                    "text": substitute_text,
+                    "full_text": full_substitute_text,
+                    "original_room": ", ".join(change["original_room"] for change in room_changes),
+                    "new_room": ", ".join(change["new_room"] for change in room_changes)
+                }
+
+            else:
+                substitution = None
+
+            if period["isCancelled"]:
+                status = "ausgefallen"
+            elif lesson_date <= today.isoformat() and end_time <= current_time:
+                status = "vorbei"
+            elif lesson_date == today.isoformat() and start_time <= current_time < end_time:
+                status = "läuft gerade"
+            elif substitution or not any(teachers) or not any(rooms):
+                status = "geändert"
+            else:
+                status = ""
+
+            timetable_days.setdefault(lesson_date, []).append({
+                "date": lesson_date,
+                "subject": subject or "Unterricht",
+                "start": f"{start_time // 100:02d}:{start_time % 100:02d}",
+                "end": f"{end_time // 100:02d}:{end_time % 100:02d}",
+                "room": ", ".join(
+                    room.get("name") if isinstance(room, dict) else str(room)
+                    for room in rooms
+                ) if any(rooms) else "",
+                "teacher": ", ".join(teachers),
+                "status": status,
+                "info": info or "",
+                "full_info": full_info,
+                "student_info": student_info,
+                "substitution": substitution
+            })
+
+    return student, timetable_days
+
 
 @app.route("/stundenplan")
 async def timetable():
@@ -404,101 +499,14 @@ async def timetable():
     timetable_dates = get_next_weekdays(today, 5)
     try:
         client = await get_client_from_session()
-        lessons = await get_timetable(client, days=timetable_dates)
     except UntisError as e:
         session.clear()
         flash(f"Fehler beim Abrufen der Daten: {e}")
         return redirect(url_for("login"))
 
-    current_time = get_current_stunde_zeit()
-    timetable_days = {day.isoformat(): [] for day in timetable_dates}
+    days = {day.isoformat(): [] for day in timetable_dates}
 
-    student = None
-
-    for lesson in lessons or []:
-        if not isinstance(lesson, dict):
-            continue
-        lesson_date = normalize_timetable_date(lesson.get("date"))
-        if lesson_date is None:
-            lesson_date = today.isoformat()
-        if date.fromisoformat(lesson_date).weekday() >= 5:
-            continue
-        start_time = normalize_time(lesson.get("startTime", 0))
-        end_time = normalize_time(lesson.get("endTime", 0))
-
-        element = await client.get_lesson_details(lesson)
-        details = element["blocks"][0][0]
-        period = details["periods"][0]
-        if not student:
-            student = element.get("elementName")
-        subject = details["subjectNameLong"] if details.get("subjectNameLong") and len(details["subjectNameLong"]) <= 15 else details.get("subjectName")
-        student_info = (details.get("periodInfo") or {}).get("text") or ""
-        full_info = details.get("lessonInfo") or ""
-        info = (
-            full_info
-            if len(full_info) < 35
-            else full_info[:32] + "..."
-        ) if full_info else None
-        full_substitute_text = period.get("substText") or ""
-        substitute_text = (
-            full_substitute_text
-            if len(full_substitute_text) < 13
-            else full_substitute_text[:10] + "..."
-        ) if full_substitute_text else None
-
-        rooms = period.get("rooms")
-        teachers = [teacher["name"] for teacher in period.get("teachers")]
-
-        room_changes = []
-        for substitution in details.get("roomSubstitutions", []):
-            org_room = substitution.get("orgRoom")
-            cur_room = substitution.get("curRoom")
-
-            if org_room and cur_room and org_room.get("id") != cur_room.get("id"):
-                room_changes.append({
-                    "original_room": org_room.get("name") or "",
-                    "new_room": cur_room.get("name") or ""
-                })
-
-        if full_substitute_text or room_changes:
-
-            substitution = {
-                "text": substitute_text,
-                "full_text": full_substitute_text,
-                "original_room": ", ".join(change["original_room"] for change in room_changes),
-                "new_room": ", ".join(change["new_room"] for change in room_changes)
-            }
-
-        else:
-            substitution = None
-
-        if period["isCancelled"]:
-            status = "ausgefallen"
-        elif lesson_date <= today.isoformat() and end_time <= current_time:
-            status = "vorbei"
-        elif lesson_date == today.isoformat() and start_time <= current_time < end_time:
-            status = "läuft gerade"
-        elif substitution or not any(teachers) or not any(rooms):
-            status = "geändert"
-        else:
-            status = ""
-
-        timetable_days.setdefault(lesson_date, []).append({
-            "date": lesson_date,
-            "subject": subject or "Unterricht",
-            "start": f"{start_time // 100:02d}:{start_time % 100:02d}",
-            "end": f"{end_time // 100:02d}:{end_time % 100:02d}",
-            "room": ", ".join(
-                room.get("name") if isinstance(room, dict) else str(room)
-                for room in rooms
-            ) if any(rooms) else "",
-            "teacher": ", ".join(teachers),
-            "status": status,
-            "info": info or "",
-            "full_info": full_info,
-            "student_info": student_info,
-            "substitution": substitution
-        })
+    student, timetable_days = await get_timetable(client, timetable_dates, days, today)
 
     time_slots = sorted({
         (lesson["start"], lesson["end"])
