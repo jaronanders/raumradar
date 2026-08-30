@@ -55,6 +55,9 @@ class UntisClient:
 
                 password = await get_untis_password(self.username)
 
+                if not password:
+                    raise UntisError(message)
+
                 await self.login(self.username, password)
 
                 return await self._rpc(method, params, retry=False)
@@ -121,7 +124,7 @@ class UntisClient:
 
 
     async def get_lesson_details(self, date, retry=True):
-        """Holt Detaildaten zu einer Unterrichtsstunde."""
+        """Holt Detaildaten zu den Unterrichtsstunden eines Tages."""
 
         response = self.session.get(
             f"https://{self.server}/WebUntis/api/public/period/info",
@@ -136,26 +139,34 @@ class UntisClient:
             cookies={"JSESSIONID": self.session_id} if self.session_id else {},
             timeout=15,
         )
-        response.raise_for_status()
-        data = response.json()
-        if "error" in data:
+        if response.status_code == 403:
+            message = "not authenticated"
+        else:
+            response.raise_for_status()
+            data = response.json()
+
+            if "error" not in data:
+                return data.get("data", data)
+
             message = data["error"].get("message", str(data["error"]))
             
-            # Re-authenticate with password
-            if retry and self.session_id and "not authenticated" in message:
-                self.session_id = None
+        # Re-authenticate with password
+        if retry and self.session_id and "not authenticated" in message:
+            self.session_id = None
 
-                if self.username is None:
-                    raise UntisError(message)
+            if self.username is None:
+                raise UntisError(message)
 
-                password = await get_untis_password(self.username)
+            password = await get_untis_password(self.username)
 
-                await self.login(self.username, password)
+            if not password:
+                raise UntisError(message)
 
-                return await self.get_lesson_details(date, retry=False)
+            await self.login(self.username, password)
 
-            raise UntisError(message)
-        return data.get("data", data)
+            return await self.get_lesson_details(date, retry=False)
+
+        raise UntisError(message)
 
 
     async def get_timetable_for_klasse(self, klasse_id, day=None):

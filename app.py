@@ -369,7 +369,7 @@ async def homework():
     )
 
 
-async def get_timetable(client, timetable_dates, days, today=get_local_date()):
+async def get_timetable(client, today=get_local_date(), *args):
     person_id = client.person_id
 
     cache_key = (
@@ -387,7 +387,7 @@ async def get_timetable(client, timetable_dates, days, today=get_local_date()):
             if cached and time.monotonic() - cached["created"] < TIMETABLE_CACHE_SECONDS:
                 return cached["student"], cached["timetable_days"]
 
-        student, timetable_days = await build_timetable(client, timetable_dates, days, today)
+        student, timetable_days = await build_timetable(client, today, *args)
         with TIMETABLE_CACHE_LOCK:
             TIMETABLE_CACHE[cache_key] = {
                 "created": time.monotonic(),
@@ -397,7 +397,7 @@ async def get_timetable(client, timetable_dates, days, today=get_local_date()):
         return student, timetable_days
 
 
-async def build_timetable(client, timetable_dates, timetable_days, today):
+async def build_timetable(client, today, timetable_dates, timetable_days):
     student = None
     current_time = get_current_stunde_zeit()
     
@@ -497,16 +497,14 @@ async def timetable():
 
     today = get_local_date()
     timetable_dates = get_next_weekdays(today, 5)
+    days = {day.isoformat(): [] for day in timetable_dates}
     try:
         client = await get_client_from_session()
+        student, timetable_days = await get_timetable(client, today, timetable_dates, days)
     except UntisError as e:
         session.clear()
         flash(f"Fehler beim Abrufen der Daten: {e}")
         return redirect(url_for("login"))
-
-    days = {day.isoformat(): [] for day in timetable_dates}
-
-    student, timetable_days = await get_timetable(client, timetable_dates, days, today)
 
     time_slots = sorted({
         (lesson["start"], lesson["end"])
