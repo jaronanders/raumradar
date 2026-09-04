@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 from config import LOCAL_TIMEZONE
-# from crypto import encrypt_password, decrypt_password
+from crypto import encrypt_password, decrypt_password
 
 DB_PATH = Path(__file__).parent / "raumradar.db"
 
@@ -46,7 +46,8 @@ async def init_db():
     """)
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS logins (
-            username TEXT PRIMARY KEY NOT NULL,
+            user_id INTEGER PRIMARY KEY NOT NULL,
+            username TEXT NOT NULL,
             password TEXT NOT NULL
         )
     """)
@@ -81,40 +82,47 @@ async def init_db():
     await conn.close()
 
 
-async def save_untis_password(username, password):
-    return ""
-    # conn = await get_connection()
-    # conn.execute("""
-    #     INSERT INTO logins (username, password) VALUES (?, ?)
-    #     ON CONFLICT(username) DO UPDATE SET password = excluded.password
-    #     """,
-    #     (username, encrypt_password(password))
-    # )
-    # conn.commit()
-    # conn.close()
+async def save_untis_password(user_id, username, password):
+    if not user_id:
+        return
+
+    conn = await get_connection()
+    conn.execute("""
+        INSERT INTO logins (user_id, username, password) VALUES (?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET username = excluded.username, password = excluded.password
+        """,
+        (user_id, username, encrypt_password(password))
+    )
+    conn.commit()
+    conn.close()
 
 
-async def delete_untis_password(username):
+async def delete_untis_password(user_id):
+    if not user_id:
+        return
+
     conn = await get_connection()
     await conn.execute(
-        "DELETE FROM logins WHERE username = ?",
-        (username,)
+        "DELETE FROM logins WHERE user_id = ?",
+        (user_id,)
     )
     await conn.commit()
     await conn.close()
 
 
-async def get_untis_password(username):
-    return ""
-    # conn = await get_connection()
-    # row = conn.execute(
-    #     "SELECT password FROM logins WHERE username = ?", (username,)
-    # ).fetchone()
+async def get_untis_password(user_id):
+    if not user_id:
+        return
 
-    # if row is None:
-    #     return
+    conn = await get_connection()
+    row = conn.execute(
+        "SELECT password FROM logins WHERE user_id = ?", (user_id,)
+    ).fetchone()
 
-    # return decrypt_password(row["password"])
+    if row is None:
+        return
+
+    return decrypt_password(row["password"])
 
 
 async def add_homework(username, subject, content, due_date, reminder):

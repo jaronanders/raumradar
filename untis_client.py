@@ -22,6 +22,8 @@ class UntisError(Exception):
             return "Falsche Anmeldedaten"
         elif "not authenticated" in self.message:
             return "Sitzung abgelaufen"
+        elif "service unavailable" in self.message:
+            return "Untis zurzeit nicht erreichbar"
         else:
             return "Unbekannter Fehler"
 
@@ -41,6 +43,10 @@ class UntisClient:
         payload = {"id": "req", "method": method, "params": params, "jsonrpc": "2.0"}
         cookies = {"JSESSIONID": self.session_id} if self.session_id else {}
         resp = self.session.post(self.base_url, json=payload, cookies=cookies, timeout=15)
+
+        if resp.status_code == 503:
+            raise UntisError("service unavailable")
+
         resp.raise_for_status()
         data = resp.json()
         if "error" in data:
@@ -53,7 +59,7 @@ class UntisClient:
                 if self.username is None:
                     raise UntisError(message)
 
-                password = await get_untis_password(self.username)
+                password = await get_untis_password(self.person_id)
 
                 if not password:
                     raise UntisError(message)
@@ -76,7 +82,7 @@ class UntisClient:
         self.person_id = result.get("personId")
         self.person_type = result.get("personType", 5)
 
-        await save_untis_password(username, password)
+        await save_untis_password(self.person_id, username, password)
 
         """When a user's session id expires, their room refresh does not work in the scheduler, therefore polling and their notifications stop working
         This updates the session id after re-authentication"""
@@ -85,8 +91,8 @@ class UntisClient:
         return result
 
     async def logout(self):
-        if self.username:
-            await delete_untis_password(self.username)
+        if self.person_id:
+            await delete_untis_password(self.person_id)
         if self.session_id:
             try:
                 await self._rpc("logout", {})
@@ -103,23 +109,6 @@ class UntisClient:
         result = await self._rpc("getKlassen", {})
         if isinstance(result, dict):
             return result.get("data") or result.get("klassen") or result.get("classes") or []
-        return result
-
-    async def get_timetable_for_student(self, student_id, days: list = None):
-        """Stundenplan eines einzelnen Schülers für einen oder mehrere Tage (default: heute)."""
-        if not days:
-            start = end = int(date.today().strftime("%Y%m%d"))
-        else:
-            start = int(days[0].strftime("%Y%m%d"))
-            end = int(days[-1].strftime("%Y%m%d"))
-        result = await self._rpc("getTimetable", {
-            "id": student_id,
-            "type": 5,  # 5 = Schüler
-            "startDate": start,
-            "endDate": end,
-        })
-        if isinstance(result, dict):
-            return result.get("data") or result.get("timetable") or result.get("lessons") or []
         return result
 
 
@@ -157,7 +146,7 @@ class UntisClient:
             if self.username is None:
                 raise UntisError(message)
 
-            password = await get_untis_password(self.username)
+            password = await get_untis_password(self.person_id)
 
             if not password:
                 raise UntisError(message)

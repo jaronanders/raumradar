@@ -35,7 +35,7 @@ app = Flask(__name__)
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per 5 minutes", "500 per hour", "1000 per day"]
+    application_limits=["3 per second", "30 per 3 minutes", "500 per hour", "1200 per day"]
 )
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config["SESSION_TYPE"] = "filesystem"
@@ -241,7 +241,7 @@ async def push_favorites():
 async def get_client_from_session():
     """Baut aus der Browser-Session einen UntisClient ohne Passwort auf."""
     if not session.get("created_at") or datetime.now(LOCAL_TIMEZONE) - datetime.fromisoformat(session["created_at"]) > timedelta(weeks=1):
-        await database.delete_untis_password(session["untis_username"])
+        await database.delete_untis_password(session["untis_person_id"])
         session.clear()
         raise UntisError("not authenticated")
 
